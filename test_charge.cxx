@@ -1,18 +1,20 @@
 #include "test_aux.h"
 /*
-  One dipole
+  Two point charges
  */
-int main(int argc, char* argv[]){
-  const char* name="1dipole";
+int main(int argc, char *argv[]){
+  const char* name="2charge";
 
-  num = 1;
+  num = 2;
   init(num);
-  
-  r[0][0] = 5.0;
-  r[0][1] = 5.0;
-  r[0][2] = 5.0;
-  q[0]    = 0.0;
-  dval[0] = 1.0;
+
+  r[0][0] = 4.5;
+  r[1][0] = 5.5;
+  r[0][1] = r[1][1] = 5.0;
+  r[0][2] = r[1][2] = 5.0;
+  q[0] = 1.0;
+  q[1] = -1.0;
+  dval[0] = dval[1] = 0.0;
 
   quaternion rQ;
   double dmy_mu[DIM];
@@ -23,7 +25,7 @@ int main(int argc, char* argv[]){
       mu[i][d] = dval[i] * dmy_mu[d];
     }
   }
-  compute_all(false, true, false, name);
+  compute_all(true, false, false, name);
   free();
   delete ewald_sum;
   return 0;

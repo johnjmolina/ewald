@@ -5,7 +5,7 @@ parameter_define.h
 alloc.*
 rigid_body.*
 quaternion.*
-*.dat
+k_vec.dat
 *.o
 *.x
 
