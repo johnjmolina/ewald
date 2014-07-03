@@ -1,8 +1,10 @@
 ARCH     = macosx
 CC	 = clang
 CXX      = clang++
-LINKS    = -I/usr/local/include -L/usr/local/lib -lm -stdlib=libc++
-CCOPT    = -O0 -g -stdlib=libc++ 
+#LINKS    = -I/usr/local/include -L/usr/local/lib -lm -stdlib=libc++
+#CCOPT    = -O0 -g -stdlib=libc++ 
+LINKS    = -I/usr/local/include -L/usr/local/lib -lm -stdlib=libstdc++
+CCOPT    = -O0 -g -stdlib=libstdc++ 
 
 AUX_OBJS = alloc.o\
        rigid_body.o\

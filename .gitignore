@@ -6,4 +6,6 @@ alloc.*
 rigid_body.*
 quaternion.*
 *.dat
+*.o
+*.x
 

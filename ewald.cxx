@@ -1,14 +1,37 @@
 #include "ewald.h"
 
-void print_matrix(const double a0[DIM], const double a1[DIM], const double a2[DIM], const char* tag){
-  fprintf(stderr, "%s : \n", tag);
-  fprintf(stderr, "%.5f %.5f %.5f\n", a0[0], a0[1], a0[2]);
-  fprintf(stderr, "%.5f %.5f %.5f\n", a1[0], a1[1], a1[2]);
-  fprintf(stderr, "%.5f %.5f %.5f\n", a2[0], a2[1], a2[2]);
-}
 parallelepiped::parallelepiped(const double a[DIM], const double b[DIM], 
                                const double c[DIM]){
-  //transfromation matrices
+  /*
+    Let (') denote quantities referring to new cell frame, otherwise
+    assume cartesian lab frame (basis vectors e_i=e^i, such that x_i=x^i)
+
+    E_i' = (tLambda)_{i'j}  e_j   -> basis vector
+    e_i  = (tiLambda)_{ij'} E_j'    
+
+    E^i' = (iLambda)_{i'j}  e_j   -> dual basis vector
+    e_i  = (Lambda)_{ij'}   E^j'  
+
+    x^i' = (iLambda)_{i'j}  x^j   -> contravariant vector
+    x^i  = (Lambda)_{ij'}   x^j'  
+
+    x_i' = (tLambda)_{i'j}  x^j   -> covariant vector
+    x^i  = (tiLambda)_{ij'} x_j'  
+
+    with Lambda = [E_1', E_2', E_3'] = [a, b, c]
+    a,b,c are the cell edge vectors spanning the parallelepiped
+
+    Note: valid k-vectors (in dual cell space) are of the form
+          k_i' = 2*pi*n_i'     (n_i' are integers)
+          k    = k_i' * E^i'
+          
+          in lab (cartesian coordinates) k vectors are thus
+          k^i  = k_i  = (tiLambda)_{ij'} k_j'
+                      = 2*pi (tiLambda)_{ij'} n_j'
+          k    = k^i * e_i
+
+          
+   */
   tLambda[0][0] = a[0];
   tLambda[0][1] = a[1];
   tLambda[0][2] = a[2];
@@ -21,19 +44,18 @@ parallelepiped::parallelepiped(const double a[DIM], const double b[DIM],
   M_trans(Lambda, tLambda);
   M_inv(iLambda, Lambda);
   M_inv(tiLambda, tLambda);
-
   
-  //basis vectors
+  //basis vectors E_i'
   e0 = tLambda[0];
   e1 = tLambda[1];
   e2 = tLambda[2];
   
-  //dual basis vectors
+  //dual basis vectors E^i'
   E0 = iLambda[0];
   E1 = iLambda[1];
   E2 = iLambda[2];
   
-  //covariant metric tensor
+  //covariant metric tensor g_{i'j'}
   gg[0][0] = v_inner_prod(e0, e0);
   gg[1][1] = v_inner_prod(e1, e1);
   gg[2][2] = v_inner_prod(e2, e2);
@@ -41,7 +63,7 @@ parallelepiped::parallelepiped(const double a[DIM], const double b[DIM],
   gg[0][2] = gg[2][0] = v_inner_prod(e0, e2);
   gg[1][2] = gg[2][1] = v_inner_prod(e1, e2);
   
-  //contravariant metric tensor
+  //contravariant metric tensor g^{i'j'}
   GG[0][0] = v_inner_prod(E0, E0);
   GG[1][1] = v_inner_prod(E1, E1);
   GG[2][2] = v_inner_prod(E2, E2);
@@ -136,7 +158,7 @@ void ewald::init_domain_k(const double &ewald_delta, const double &ewald_conv){
   for(int d = 0; d < DIM; d++){
     nkmax = MAX(nkmax, (int)( sqrt(k2max/GG[d][d]) / PI2) ) ;
   }
-  fprintf(stderr, "nmax : %d %g %g\n", nkmax, k2max, GG[0][0]);
+  fprintf(stderr, "# Ewald nkmax : %d %g %g\n", nkmax, k2max, GG[0][0]);
   nkmax += 1;
   k2max = k2max*ewald_conv;
   
@@ -158,6 +180,9 @@ void ewald::init_domain_k(const double &ewald_delta, const double &ewald_conv){
   max_l = max_m = max_n = 0;
   min_l = min_m = 0;
   min_n = 1;
+
+  //Precompute all k-vectors with k2 <= k2max
+  //Only consider kx>0 half of plane
   for(int ll = min_l; ll <= nkmax; ll++){
     k_co[0] = PI2*static_cast<double>(ll);
     k0_0 = k_co[0]*tiH[0][0];
@@ -172,6 +197,8 @@ void ewald::init_domain_k(const double &ewald_delta, const double &ewald_conv){
       
       for(int nn = min_n; nn <= nkmax; nn++){
         k_co[2] = PI2*static_cast<double>(nn);
+
+        //cartesian components of k vectors
         k0_2 = k0_1 + k_co[2]*tiH[0][2];
         k1_2 = k1_1 + k_co[2]*tiH[1][2];
         k2_2 = k2_1 + k_co[2]*tiH[2][2];
@@ -186,10 +213,12 @@ void ewald::init_domain_k(const double &ewald_delta, const double &ewald_conv){
             assert(false);
           }
           
+          //covariant components in cell frame
           dmy_cell[mesh][0] = ll;
           dmy_cell[mesh][1] = mm;
           dmy_cell[mesh][2] = nn;
           
+          //contravariant components in lab frame
           dmy_k[mesh][0] = k0_2;
           dmy_k[mesh][1] = k1_2;
           dmy_k[mesh][2] = k2_2;
@@ -228,8 +257,8 @@ void ewald::init_domain_k(const double &ewald_delta, const double &ewald_conv){
   sinkr = alloc_1d_double(nump);
 
 
-  fprintf(stderr, "Number of k-points: %d\n", ewald_domain);
-  fprintf(stderr, "k cut (kx, ky, kz): %d %d %d\n", 
+  fprintf(stderr, "# Number of k-points: %d\n", ewald_domain);
+  fprintf(stderr, "# k cut (kx, ky, kz): %d %d %d\n", 
           kmax_l, kmax_m, kmax_n);
   {
     FILE* kout = filecheckopen("k_vec.dat", "w");
@@ -311,7 +340,7 @@ void ewald::reset_boundary(const double &ewald_epsilon){
 void ewald::compute_self(double &energy, double* force, double* torque, double* efield,
                          double const* r, double const* q, double const* mu, double const* theta) const{
 
-  double mu_factor = 4.0/3.0*eta3*SQRT_PI_inv;
+  double mu_factor = 4.0/3.0*eta3*iRoot_PI;
   double dmy_energy = 0.0;
 #pragma omp parallel for schedule(dynamic, 1) reduction(+:dmy_energy)
   for(int i = 0; i < nump; i++){
@@ -385,7 +414,7 @@ void ewald::compute_r(double &energy, double* force, double* torque, double* efi
         drij = sqrt(drij);
         etar  = eta*drij;
         etar2 = etar*etar;
-        etar_pi= 2.0*etar*SQRT_PI_inv;
+        etar_pi= 2.0*etar*iRoot_PI;
         exp_ewald = exp(-etar2);
         erfc_ewald = erfc(etar);
 
@@ -460,11 +489,17 @@ void ewald::precompute_trig_k(double const* r){
 #pragma omp parallel for schedule(dynamic, 1)
   for(int i = 0; i < nump; i++){
     const double* ri = &r[i*DIM];
-
-    //transform unit k vectors to cartesian coordinates to compute k.r
-    double twopibox_l = PI2*(iH[0]*ri[0] + iH[1]*ri[1]     + iH[2]*ri[2]);
-    double twopibox_m = PI2*(iH[DIM]*ri[0] + iH[DIM+1]*ri[1] + iH[DIM+2]*ri[2]);
-    double twopibox_n = PI2*(iH[2*DIM]*ri[0] + iH[2*DIM+1]*ri[1] + iH[2*DIM+2]*ri[2]);
+    /*
+      Transform UNIT k vectors to cartesian coordinates to compute k.r
+      k.r = k_i . r^i = ( (tiLambda)_{ij'} k_j' ) . r^i
+                      = (2*pi (tiLambda)_{ij'} n_j') . r^i
+                      = (2*pi (tiLambda)_{ij'} delta_{j'l'}) . r^i
+                      = 2*pi (tiLambda)_{il'} r^i
+                      = 2*pi (iLambda)_{l'i} r^i
+    */
+    double twopibox_l = PI2*(iH[0]*ri[0] + iH[1]*ri[1] + iH[2]*ri[2]);
+    double twopibox_m = PI2*(iH[3]*ri[0] + iH[4]*ri[1] + iH[5]*ri[2]);
+    double twopibox_n = PI2*(iH[6]*ri[0] + iH[7]*ri[1] + iH[8]*ri[2]);
 
     
     //setup cosine / sine arrays
@@ -507,11 +542,12 @@ void ewald::compute_trig_k(const int& ll, const int& mm, const int& nn){
   int l = ABS(ll);
   int m = ABS(mm);
   int n = ABS(nn);
-  int sign;
+  double sign;
 
   // cos(p l + q m) = cos(p l) cos(q m) - sin(p l) sin(q m)
   // sin(p l + q m) = sin(p l) cos(q m) + cos(p l) sin(q m)
   sign = (mm > 0 ? 1.0 : -1.0);
+#pragma omp parallel for schedule(dynamic, 1)
   for(int j = 0; j < nump; j++){
     coskr_lm[j] = coskr_l[l][j] * coskr_m[m][j] - sign * sinkr_l[l][j] * sinkr_m[m][j];
     sinkr_lm[j] = sinkr_l[l][j] * coskr_m[m][j] + sign * coskr_l[l][j] * sinkr_m[m][j];
@@ -520,6 +556,7 @@ void ewald::compute_trig_k(const int& ll, const int& mm, const int& nn){
   // cos(p l + q m + r n) = cos(p l + q m) cos(r n) - sin(p l + q m) sin(r n)
   // sin(p l + q m + r n) = sin(p l + q m) cos(r n) + cos(p l + q m) sin(r n)
   sign = (nn > 0 ? 1.0 : -1.0);
+#pragma omp parallel for schedule(dynamic, 1)
   for(int j = 0; j < nump; j++){
     coskr[j] = coskr_lm[j] * coskr_n[n][j] - sign * sinkr_lm[j] * sinkr_n[n][j];
     sinkr[j] = sinkr_lm[j] * coskr_n[n][j] + sign * coskr_lm[j] * sinkr_n[n][j];
@@ -527,11 +564,11 @@ void ewald::compute_trig_k(const int& ll, const int& mm, const int& nn){
 }
 
 void ewald::compute_k(double &energy, double* force, double* torque, double* efield, 
-                      double const* r, double const* q, double const* mu,
-                      double const* theta){
+                      double const* r, double const* q, double const* mu, double const* theta){
+
   double dmy_energy, dmy_force, dmy_efield;
   dmy_energy = dmy_force = dmy_efield = 0.0;
-  // sum over all k-vectors
+
   this->precompute_trig_k(r);
   for(int i = 0; i < ewald_domain; i++){
     //compute cos(kr) and sin(kr) terms for all particles
@@ -568,6 +605,7 @@ void ewald::compute_k(double &energy, double* force, double* torque, double* efi
     dmy_energy += ewald_damp * (sum_k_mu_c * sum_k_mu_c + sum_k_mu_s * sum_k_mu_s);
 
     ewald_damp *= (cell->PI8iVol);
+
 #pragma omp parallel for schedule(dynamic, 1) private(dmy_force, dmy_efield)
     for(int j = 0; j < nump; j++){
       int jj = j * DIM;
@@ -611,6 +649,7 @@ void ewald::compute(double* E_ewald, double* force, double* torque, double* efie
   this->compute_self(e_self, force, torque, efield, r, q, mu, theta);
   this->compute_surface(e_surface, force, torque, efield, r, q, mu, theta);
   end_t = clock();
+
   cpu_t = ((double)end_t - start_t)/CLOCKS_PER_SEC;
   fprintf(stderr, "\tExecution Time = %12.5f \n", cpu_t);
   E_ewald[0] = E_ewald[1] + E_ewald[2] + E_ewald[3] + E_ewald[4];

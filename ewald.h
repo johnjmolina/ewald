@@ -10,14 +10,32 @@
 #include "lad3.h"
 
 
+/*!
+  \brief Construct parallelepiped cell reference frame
+  \details Basis vector of cell given by cell edges (can be non-uniform)
+ */
 class parallelepiped{
 public:
   parallelepiped(const double a[DIM], const double b[DIM], const double c[DIM]);
   ~parallelepiped();
+
+  /*!
+    \brief Compute norm of covariant vector (in cell coordinates)
+   */
   double norm_co(const double co_v[DIM]) const;
+  /*
+    \brief Compute norm of contravariant vector (in cell coordinates)
+   */
   double norm_contra(const double contra_v[DIM]) const;
+  /*
+    \brief Compute minimum image (pbc) distance of vector in lab
+    (cartesian) coordinates
+   */
   void   distance_MI(const double r1[DIM], const double r2[DIM], 
                      double r12[DIM]) const;
+  /*
+    \brief Return cell edge lengths
+   */
   inline void get_lengths(double &la, double &lb, double &lc) const{
     la = l0;
     lb = l1;
