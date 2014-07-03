@@ -10,6 +10,19 @@
 #include "gen_shell.h"
 #include "ewald.h"
 
+void ewald_minimum_image(double & energy,
+                         double **force,
+                         double **torque,
+                         double **field,
+                         const int &Nparticles,
+                         const parallelepiped &rcell,
+                         double const* const* r,
+                         double const* q,
+                         double const* const* mu,
+                         FILE* fout,
+                         const char* save_buffer
+                         );
+
 
 void ewald_direct_sum_naive(double &energy,
                             double **force,

@@ -163,6 +163,12 @@ bool load_gold(const char* save_buffer){
   return loaded;
 }
 void compute_gold(const char* save_buffer){
+  fprintf(stderr, "******* Minimum Image Calculation\n");
+  ewald_minimum_image(energy_gold, force_gold, torque_gold, efield_gold, num, *cell, r, q, mu, stderr, save_buffer);
+  show_results(num, energy_gold, force_gold, torque_gold, efield_gold, stderr);
+
+
+  fprintf(stderr, "******* Direct Sum Calculation\n");  
   if(!load_gold(save_buffer)){
     energy_gold = 0.0;
     ewald_direct_sum(energy_gold, force_gold, torque_gold, efield_gold, ndirect,
@@ -177,8 +183,7 @@ void compute_all(const bool& charge, const bool& dipole, const bool& quadrupole,
   double* dmy_q     = (charge ? q : NULL);
   double* dmy_mu    = (dipole ? mu[0]: NULL);
   double* dmy_theta = (quadrupole ? theta[0][0]: NULL);
-
-  fprintf(stderr, "******* Direct Sum Calculation\n");  
+  
   compute_gold(save_buffer);
 
   fprintf(stderr, "\n****** Ewald Calculation\n");

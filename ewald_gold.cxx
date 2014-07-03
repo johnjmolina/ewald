@@ -20,7 +20,7 @@ inline void pair_interaction(const double rij[DIM],
   double Dr = 5.0*Cr*dr2i;
   
   { //charge-charge
-    energy += 0.5*qi*qj*dri;
+    energy += qi*qj*dri;
     for(int d = 0; d < DIM; d++){
       force[d] += qi*qj*Br*rij[d];
       field[d] += qj*Br*rij[d];
@@ -35,7 +35,7 @@ inline void pair_interaction(const double rij[DIM],
     v_cross(cross_muj_r, muj, rij);
     v_cross(cross_mui_muj, mui, muj);
     
-    energy += 0.5*(Br*dot_mui_muj - Cr*dot_mui_r*dot_muj_r);
+    energy += (Br*dot_mui_muj - Cr*dot_mui_r*dot_muj_r);
     for(int d = 0; d < DIM; d++){
       force[d]  += (Cr*(dot_mui_muj*rij[d] + dot_muj_r*mui[d] + dot_mui_r*muj[d])
                     - Dr*dot_mui_r*dot_muj_r*rij[d]);
@@ -44,7 +44,60 @@ inline void pair_interaction(const double rij[DIM],
     }
   }
 }
+void ewald_minimum_image(double & energy,
+                         double **force,
+                         double **torque,
+                         double **field,
+                         const int &Nparticles,
+                         const parallelepiped &rcell,
+                         double const* const* r,
+                         double const* q,
+                         double const* const* mu,
+                         FILE* fout,
+                         const char* save_buffer
+                         ){
+  double dmy_energy;
+  double dmy_force[DIM], dmy_torque[DIM], dmy_field[DIM];
+  double rij_mi[DIM];
+  for(int i = 0; i < Nparticles; i++){
+    const double qi   = q[i];
+    const double* mui = mu[i];
 
+    for(int j = 0; j < Nparticles; j++){
+      const double qj   = q[j];
+      const double* muj = mu[j];
+
+      if(i != j){
+        rcell.distance_MI(r[i], r[j], rij_mi);
+        pair_interaction(rij_mi, qi, qj, mui, muj, 
+                         dmy_energy, dmy_force, dmy_torque, dmy_field);
+        
+        energy += (dmy_energy/2.0);
+        for(int d = 0; d < DIM; d++){
+          force[i][d]  += dmy_force[d];
+          torque[i][d] += dmy_torque[d];
+          field[i][d]  += dmy_field[d];
+        }
+      }
+    }
+  }
+
+  {
+    char buffer[256];
+    sprintf(buffer, "%s_mi.dat", save_buffer);
+    FILE* fsave = filecheckopen(buffer, "w");
+    fprintf(fsave, "%d\n", Nparticles);
+    fprintf(fsave, "%20.12E\n", energy);
+    for(int i = 0; i < Nparticles; i++){
+      fprintf(fsave, "%20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E\n",
+              force[i][0], force[i][1], force[i][2],
+              torque[i][0], torque[i][1], torque[i][2],
+              field[i][0], field[i][1], field[i][2]
+              );
+    }
+    fclose(fsave);
+  }
+}
 void ewald_direct_sum(double &energy, 
                       double **force, 
                       double **torque, 
@@ -125,7 +178,7 @@ void ewald_direct_sum(double &energy,
 	    }
             pair_interaction(rij, qi, qj, mui, muj, dmy_energy, dmy_force, dmy_torque, dmy_field);
 	    
-	    shell_energy += dmy_energy;
+	    shell_energy += (dmy_energy/2.0);
 	    for(int d = 0; d < DIM; d++){
 	      shell_force[i][d] += dmy_force[d];
 	      shell_torque[i][d] += dmy_torque[d];
@@ -233,7 +286,7 @@ void ewald_direct_sum_naive(double &energy,
 	  for(int j = 0; j < Nparticles; j++){
             const double qj   = q[j];
 	    const double* muj = mu[j];
-	   
+            
 	    if(!(i == j && ll == 0 && mm == 0 && nn == 0)){
 	      rcell.distance_MI(r[i], r[j], rij_mi);
 	      for(int d = 0; d < DIM; d++){
@@ -241,7 +294,7 @@ void ewald_direct_sum_naive(double &energy,
 	      }
               pair_interaction(rij, qi, qj, mui, muj, dmy_energy, dmy_force, dmy_torque, dmy_field);
 
-	      energy+= dmy_energy;
+	      energy+= (dmy_energy/2.0);
 	      for(int d = 0; d < DIM; d++){
 		force[i][d] += dmy_force[d];
 		torque[i][d] += dmy_torque[d];
