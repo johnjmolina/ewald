@@ -19,7 +19,7 @@ int main(int argc, char *argv[]){
   for(int i = 0; i < num; i++){
     random_dipole(dval[i], mu[i]);
   }
-  ndirect = 5;
+  ndirect = 6;
   compute_all(true, true, false, name);
   free();
   delete ewald_sum;

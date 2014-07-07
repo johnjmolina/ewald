@@ -421,9 +421,9 @@ void ewald::compute_surface(double &energy, double* force, double* torque, doubl
       }
       
       if(DIPOLE){
-        torque[ii]   += dmy_factor*(mui[1]*sum_mu2 - mui[2]*sum_mu1);
-        torque[ii+1] += dmy_factor*(mui[2]*sum_mu0 - mui[0]*sum_mu2);
-        torque[ii+2] += dmy_factor*(mui[0]*sum_mu1 - mui[1]*sum_mu0);
+        torque[ii]   += dmy_factor*(mui[1]*sum_qr_mu2 - mui[2]*sum_qr_mu1);
+        torque[ii+1] += dmy_factor*(mui[2]*sum_qr_mu0 - mui[0]*sum_qr_mu2);
+        torque[ii+2] += dmy_factor*(mui[0]*sum_qr_mu1 - mui[1]*sum_qr_mu0);
       }
     }
   }
@@ -479,6 +479,7 @@ void ewald::compute_r(double &energy, double* force, double* torque, double* efi
 	  * drij5 * drij2;
 
         if(CHARGE){
+          //charge - charge term
           dmy_energy += erfc_ewald*drij*qi*qj;
 
           for(int d = 0; d < DIM; d++){
@@ -733,13 +734,9 @@ void ewald::compute(double* E_ewald, double* force, double* torque, double* efie
   start_t = clock();
   this->reset(force, torque, efield);
   this->compute_r(e_r, force, torque, efield, r, q, mu, theta);
-  fprintf(stderr, "REAL = %10.6E\n", e_r);
   this->compute_k(e_k, force, torque, efield, r, q, mu, theta);
-  fprintf(stderr, "RECIP= %10.6E\n", e_k);
   this->compute_self(e_self, force, torque, efield, r, q, mu, theta);
-  fprintf(stderr, "SELF = %10.6E\n", e_self);
   this->compute_surface(e_surface, force, torque, efield, r, q, mu, theta);
-  fprintf(stderr, "SURF = %10.6E\n", e_surface);
   end_t = clock();
 
   cpu_t = ((double)end_t - start_t)/CLOCKS_PER_SEC;
@@ -759,6 +756,31 @@ void ewald::compute(double* E_ewald, double* force, double* torque, double* efie
               );
     }
     fclose(fsave);
+
+    if(TINFOIL){
+      //convert to atomic units to compare with cp2k
+      // energy -> hartree
+      // force  -> hartree / bohr radius
+      // length -> bohr radius
+      // assuming lenght units are in angstroms
+      const double e_au = 0.5291772114258002;  //E_h
+      const double f_au = 0.2800285208247281;  //E_h / a0
+      const double r_au = 1.889726124565062;   //a0
+      
+      char cp2k_buffer[256];
+      sprintf(cp2k_buffer, "cp2k_%s", save_buffer);
+      FILE* fcp2k = filecheckopen(cp2k_buffer, "w");
+      fprintf(fcp2k, "%5d\n", nump);
+      fprintf(fcp2k, "i =        0, time =        0.000, E =        %12.10f\n", E_ewald[0]*e_au);
+      for(int i = 0; i < nump; i++){
+        int ii = i * DIM;
+        fprintf(fcp2k, "%5s   %16.10f   %16.10f   %16.10f\n",
+                (q[i] > 0.0 ? "Na" : "Cl"),
+                force[ii]*f_au, force[ii+1]*f_au, force[ii+2]*f_au
+                );
+      }
+      fclose(fcp2k);
+    }
   }
 }
 

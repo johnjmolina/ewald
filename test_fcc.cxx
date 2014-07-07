@@ -24,9 +24,6 @@ void fccLattice(int ncells)
           In++;
         }
 	mu[i][0] = mu[i][1] = mu[i][2] = 0.0;
-        fprintf(stderr, "%.3f %.3f %.3f %.3f\n", 
-                q[i], r[i][0], r[i][1], r[i][2]
-                );
       }
     }
   }
@@ -42,8 +39,7 @@ int main(int argc, char *argv[]){
   init(num);
   set_cubic_box(float(ncells));
   fccLattice(ncells);
-  alpha=8.0;
-  ndirect = 3;
+  ndirect = 6;
   compute_all(true, true, false, name);
   free();
   delete ewald_sum;

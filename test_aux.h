@@ -217,5 +217,18 @@ void compute_all(const bool& charge, const bool& dipole, const bool& quadrupole,
   show_results(num, Ewald_energy[0], force, torque, efield, stderr);
   
   print_convergence(rmstol, rmstol2, stderr);
+  
+  {
+    char buffer[256];
+    sprintf(buffer, "%s_conf.dat", save_buffer);
+    FILE* conf = filecheckopen(buffer, "w");
+    for(int i = 0; i < num; i++){
+      fprintf(conf, "%s    %20.16E    %20.16E    %20.16E\n",
+              (q[i] > 0.0 ? "Na" : "Cl"),
+              r[i][0], r[i][1], r[i][2]
+              );
+    }
+    fclose(conf);
+  }
 }
 #endif

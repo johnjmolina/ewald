@@ -133,7 +133,7 @@ void ewald_direct_sum(double &energy,
   double dmy_field[DIM];
   double lbox[DIM];
   double dmy_energy;
-  double rij_mi[DIM], rij[DIM];
+  double rij[DIM];
   clock_t start_t, end_t;
   double cpu_t, cpu_t2;
 
@@ -169,16 +169,17 @@ void ewald_direct_sum(double &energy,
       
       for(int i = 0; i < Nparticles; i++){
         const double qi = q[i];
+        const double* ri = r[i];
 	const double* mui = mu[i];
 	
 	for(int j = 0; j < Nparticles; j++){
           const double qj = q[j];
+          const double* rj = r[j];
 	  const double* muj = mu[j];
 	  if(!(i == j && ll == 0 && mm == 0 && nn == 0)){
             
-	    rcell.distance_MI(r[i], r[j], rij_mi);
 	    for(int d = 0; d < DIM; d++){
-	      rij[d] = rij_mi[d] + (double)icell[d]*lbox[d];
+	      rij[d] = (ri[d] - rj[d]) + (double)icell[d]*lbox[d];
 	    }
             pair_interaction(rij, qi, qj, mui, muj, dmy_energy, dmy_force, dmy_torque, dmy_field);
 	    
@@ -264,7 +265,7 @@ void ewald_direct_sum_naive(double &energy,
   double dmy_torque[DIM];
   double dmy_field[DIM];
   double dmy_energy;
-  double rij_mi[DIM], rij[DIM];
+  double rij[DIM];
 
   energy = 0.0;
   for(int i = 0; i < Nparticles; i++){
@@ -285,16 +286,17 @@ void ewald_direct_sum_naive(double &energy,
 
 	for(int i = 0; i < Nparticles; i++){
           const double qi   = q[i];
+          const double* ri  = r[i];
 	  const double* mui = mu[i];
 
 	  for(int j = 0; j < Nparticles; j++){
             const double qj   = q[j];
+            const double* rj  = r[j];
 	    const double* muj = mu[j];
             
 	    if(!(i == j && ll == 0 && mm == 0 && nn == 0)){
-	      rcell.distance_MI(r[i], r[j], rij_mi);
 	      for(int d = 0; d < DIM; d++){
-		rij[d] = rij_mi[d] + (double)icell[d]*lbox[d];
+		rij[d] = (ri[d] - rj[d]) + (double)icell[d]*lbox[d];
 	      }
               pair_interaction(rij, qi, qj, mui, muj, dmy_energy, dmy_force, dmy_torque, dmy_field);
 
