@@ -15,17 +15,10 @@ int main(int argc, char *argv[]){
   q[0] = 1.0;
   q[1] = -1.0;
   dval[0] = dval[1] = 0.0;
-
-  quaternion rQ;
-  double dmy_mu[DIM];
-  for(int i = 0; i < num; i++){
-    qtn_init(rQ, 1.0, 0.0, 0.0, 0.0);
-    rigid_body_rotation(dmy_mu, ex, rQ, BODY2SPACE);
-    for(int d = 0; d < DIM; d++){
-      mu[i][d] = dval[i] * dmy_mu[d];
-    }
-  }
-  compute_all(true, false, false, name);
+  mu[0][0] = mu[0][1] = mu[0][2] = 0.0;
+  mu[1][0] = mu[1][1] = mu[1][2] = 0.0;
+  set_cubic_box(10.0);
+  compute_all(true, true, false, name);
   free();
   delete ewald_sum;
   return 0;

@@ -13,16 +13,11 @@ int main(int argc, char *argv[]){
   q[0] = q[1] = 0.0;
   dval[0] = dval[1] = 1.0;
 
-  quaternion rQ;
-  double dmy_mu[DIM];
-  for(int i = 0; i < num; i++){
-    random_rqtn(rQ);
-    rigid_body_rotation(dmy_mu, ex, rQ, BODY2SPACE);    
-    for(int d = 0; d < DIM; d++){
-      mu[i][d] = dval[i] * dmy_mu[d];
-    }
-  }
-  compute_all(false, true, false, name);
+  random_dipole(dval[0], mu[0]);
+  random_dipole(dval[1], mu[1]);
+
+  set_cubic_box(10.0);
+  compute_all(true, true, false, name);
   free();
   delete ewald_sum;
   return 0;

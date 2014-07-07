@@ -7,6 +7,7 @@ int main(int argc, char *argv[]){
 
   num = 100;
   init(num);
+  set_cubic_box(10.0);
 
   for(int i = 0; i < num; i++){
     r[i][0] = RAx(boxlen);
@@ -14,16 +15,12 @@ int main(int argc, char *argv[]){
     r[i][2] = RAx(boxlen);
     q[i]    = 0.0;
     dval[i] = 1.0;
-
-    quaternion rQ;
-    double dmy_mu[DIM];
-    random_rqtn(rQ);
-    rigid_body_rotation(dmy_mu, ez, rQ, BODY2SPACE);
-    for(int d = 0; d < DIM; d++){
-      mu[i][d] = dval[i] * dmy_mu[d];
-    }
   }
-  compute_all(false, true, false, name);
+  for(int i = 0; i < num; i++){
+    random_dipole(dval[i], mu[i]);
+  }
+  ndirect = 5;
+  compute_all(true, true, false, name);
   free();
   delete ewald_sum;
   return 0;

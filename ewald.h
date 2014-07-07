@@ -80,7 +80,8 @@ class ewald {
   void reset_boundary(const double &ewald_epsilon);
 
   void compute(double* E_ewald,double* force, double* torque, double* efield,
-               double const* r, double const* q,  double const* mu, double const* theta);
+               double const* r, double const* q,  double const* mu, double const* theta,
+               const char* save_buffer);
 
   void compute_r(double& energy, double* force, double* torque, double* efield,
                  double const* r, double const* q, double const* mu, double const* theta) const;

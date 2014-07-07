@@ -3,7 +3,6 @@
 #include <time.h>
 #include "ewald_gold.h"
 #include "ewald.h"
-#include "rigid_body.h"
 
 int num;
 double *dval;
@@ -38,19 +37,28 @@ double a[DIM], b[DIM], c[DIM];
 parallelepiped *cell;
 ewald *ewald_sum;
 
+void set_cubic_box(const double &len){
+  boxlen = len;
+  a[0] = b[1] = c[2] = boxlen;
+  a[1] = b[2] = c[0] = 0.0;
+  a[2] = b[0] = c[1] = 0.0;
+  cell = new parallelepiped(a, b, c);
+}
+void random_dipole(const double &val, double mui[DIM]){
+  double cos_theta = RAx(1.0);
+  double theta = acos(cos_theta);
+  double phi = 2.0*M_PI*RAx(1.0);
+  mui[0] = val*sin(theta)*cos(phi);
+  mui[1] = val*sin(theta)*sin(phi);
+  mui[2] = val*cos(theta);
+}
 void init(const int &num){
-  boxlen = 10.0;
   alpha  = 8.0;
   delta  = 1.0e-16;
   conv   = 0.51;
   epsilon= 1.0;
   ndirect= 24;
-  
-  a[0] = b[1] = c[2] = boxlen;
-  a[1] = b[2] = c[0] = 0.0;
-  a[2] = b[0] = c[1] = 0.0;
-  cell = new parallelepiped(a, b, c);
-  
+    
   dval = (double*) malloc(num * sizeof(double));
   r = (double**) alloc_2d_double(num, DIM);
   q = (double*) alloc_1d_double(num);
@@ -180,9 +188,9 @@ void compute_gold(const char* save_buffer){
 }
 void compute_all(const bool& charge, const bool& dipole, const bool& quadrupole, const char* save_buffer){
 
-  double* dmy_q     = (charge ? q : NULL);
-  double* dmy_mu    = (dipole ? mu[0]: NULL);
-  double* dmy_theta = (quadrupole ? theta[0][0]: NULL);
+  double* dmy_q     = (charge ? q : q);
+  double* dmy_mu    = (dipole ? mu[0]: mu[0]);
+  double* dmy_theta = (quadrupole ? theta[0][0]: theta[0][0]);
   
   compute_gold(save_buffer);
 
@@ -191,17 +199,20 @@ void compute_all(const bool& charge, const bool& dipole, const bool& quadrupole,
   ewald_sum = new ewald(cell, alpha, epsilon, delta, conv, num,
                         charge, dipole, quadrupole);
   
+  char kbuffer[256];
+  sprintf(kbuffer, "%s_ewald_1.dat", save_buffer);
   fprintf(stderr, "\t epsilon = 1 (vacuum)\n");
   epsilon = 1.0;
   ewald_sum -> reset_boundary(epsilon);
-  ewald_sum -> compute(Ewald_energy, force[0], torque[0], efield[0], r[0], dmy_q, dmy_mu, dmy_theta);
+  ewald_sum -> compute(Ewald_energy, force[0], torque[0], efield[0], r[0], dmy_q, dmy_mu, dmy_theta, kbuffer);
   check_convergence(energy_gold, Ewald_energy[0], rmstol);
   show_results(num, Ewald_energy[0], force, torque, efield, stderr);
   
   fprintf(stderr, "\t epsilon = inf (tinfoil)\n");
+  sprintf(kbuffer, "%s_ewald_inf.dat", save_buffer);
   epsilon = -1.0;
   ewald_sum -> reset_boundary(epsilon);
-  ewald_sum -> compute(Ewald_energy, force[0], torque[0], efield[0], r[0], dmy_q, dmy_mu, dmy_theta);
+  ewald_sum -> compute(Ewald_energy, force[0], torque[0], efield[0], r[0], dmy_q, dmy_mu, dmy_theta, kbuffer);
   check_convergence(energy_gold, Ewald_energy[0], rmstol2);
   show_results(num, Ewald_energy[0], force, torque, efield, stderr);
   

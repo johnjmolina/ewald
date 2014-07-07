@@ -308,6 +308,7 @@ ewald::ewald(parallelepiped *_cell,
     rcut = (cell->wmin)/2.0;
     r2max= rcut*rcut;
     eta  = ewald_alpha/(rcut*2.0);
+    fprintf(stderr, "#ewald alpha = %12.6E\n", eta);
     eta2 = SQ(eta);
     eta3 = eta2*eta;
     eta_exp = -1.0 / (4.0 * eta2);
@@ -719,7 +720,8 @@ void ewald::compute_k(double &energy, double* force, double* torque, double* efi
 }
 
 void ewald::compute(double* E_ewald, double* force, double* torque, double* efield,
-                    double const* r, double const* q, double const* mu, double const* theta
+                    double const* r, double const* q, double const* mu, double const* theta,
+                    const char* save_buffer
                ){
   double &e_r = E_ewald[1];
   double &e_k = E_ewald[2];
@@ -728,18 +730,36 @@ void ewald::compute(double* E_ewald, double* force, double* torque, double* efie
   e_r = e_k = e_self = e_surface = 0.0;
   clock_t start_t, end_t;
   double cpu_t;
-
   start_t = clock();
   this->reset(force, torque, efield);
   this->compute_r(e_r, force, torque, efield, r, q, mu, theta);
+  fprintf(stderr, "REAL = %10.6E\n", e_r);
   this->compute_k(e_k, force, torque, efield, r, q, mu, theta);
+  fprintf(stderr, "RECIP= %10.6E\n", e_k);
   this->compute_self(e_self, force, torque, efield, r, q, mu, theta);
+  fprintf(stderr, "SELF = %10.6E\n", e_self);
   this->compute_surface(e_surface, force, torque, efield, r, q, mu, theta);
+  fprintf(stderr, "SURF = %10.6E\n", e_surface);
   end_t = clock();
 
   cpu_t = ((double)end_t - start_t)/CLOCKS_PER_SEC;
   fprintf(stderr, "\tExecution Time = %12.5f \n", cpu_t);
   E_ewald[0] = E_ewald[1] + E_ewald[2] + E_ewald[3] + E_ewald[4];
+
+  {
+    FILE* fsave = filecheckopen(save_buffer, "w");
+    fprintf(fsave, "%d\n", nump);
+    fprintf(fsave, "%20.12E\n", E_ewald[0]);
+    for(int i = 0; i < nump; i++){
+      int ii = i*DIM;
+      fprintf(fsave, "%20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E\n",
+              force[ii], force[ii+1], force[ii+2],
+              torque[ii], torque[ii+1], torque[ii+2],
+              efield[ii], efield[ii+1], efield[ii+2]
+              );
+    }
+    fclose(fsave);
+  }
 }
 
 ewald::~ewald(){

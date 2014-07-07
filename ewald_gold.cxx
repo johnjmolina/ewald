@@ -19,14 +19,14 @@ inline void pair_interaction(const double rij[DIM],
   double Cr = 3.0*Br*dr2i;
   double Dr = 5.0*Cr*dr2i;
   
-  { //charge-charge
+  { //charge
     energy += qi*qj*dri;
     for(int d = 0; d < DIM; d++){
       force[d] += qi*qj*Br*rij[d];
       field[d] += qj*Br*rij[d];
     }
   }
-  {  //dipole-dipole
+  {  //dipole
     double dot_mui_r = v_inner_prod(mui, rij);
     double dot_muj_r = v_inner_prod(muj, rij);
     double dot_mui_muj = v_inner_prod(mui, muj);
@@ -35,6 +35,10 @@ inline void pair_interaction(const double rij[DIM],
     v_cross(cross_muj_r, muj, rij);
     v_cross(cross_mui_muj, mui, muj);
     
+    //charge-dipole
+    //    energy += (qi*dot_muj_r - qj*dot_mui_r)*Br;
+
+    //dipole-dipole
     energy += (Br*dot_mui_muj - Cr*dot_mui_r*dot_muj_r);
     for(int d = 0; d < DIM; d++){
       force[d]  += (Cr*(dot_mui_muj*rij[d] + dot_muj_r*mui[d] + dot_mui_r*muj[d])

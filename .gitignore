@@ -8,4 +8,6 @@ quaternion.*
 k_vec.dat
 *.o
 *.x
+reference
+gromacs
 
