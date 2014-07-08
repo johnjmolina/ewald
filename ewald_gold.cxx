@@ -1,5 +1,7 @@
 #include "ewald_gold.h"
 
+// Compute pair interaction energy, as well as
+// force, torque, and efield on particle i due to particle j
 inline void pair_interaction(const double rij[DIM],
                              const double &qi, const double &qj,
                              const double mui[DIM], const double muj[DIM],
@@ -18,34 +20,38 @@ inline void pair_interaction(const double rij[DIM],
   double Br = dr2i*dri;
   double Cr = 3.0*Br*dr2i;
   double Dr = 5.0*Cr*dr2i;
-  
-  { //charge
+
+  { //charge interactions
     energy += qi*qj*dri;
     for(int d = 0; d < DIM; d++){
-      force[d] += qi*qj*Br*rij[d];
-      field[d] += qj*Br*rij[d];
+      force[d]  += qi*qj*Br*rij[d];
+      field[d]  += qj*Br*rij[d];
     }
   }
-  {  //dipole
+  {  //dipole interactions
     double dot_mui_r = v_inner_prod(mui, rij);
     double dot_muj_r = v_inner_prod(muj, rij);
     double dot_mui_muj = v_inner_prod(mui, muj);
-    double cross_mui_r[DIM], cross_muj_r[DIM], cross_mui_muj[DIM];
-    v_cross(cross_mui_r, mui, rij);
-    v_cross(cross_muj_r, muj, rij);
-    v_cross(cross_mui_muj, mui, muj);
     
     //charge-dipole
-    //    energy += (qi*dot_muj_r - qj*dot_mui_r)*Br;
+    energy += (qi*dot_muj_r - qj*dot_mui_r)*Br;
+    for(int d = 0; d < DIM; d++){
+      force[d] += (Cr*(qi*dot_muj_r - qj*dot_mui_r)*rij[d]
+                   - Br*(qi*muj[d] - qj*mui[d]));
+    }
 
     //dipole-dipole
     energy += (Br*dot_mui_muj - Cr*dot_mui_r*dot_muj_r);
     for(int d = 0; d < DIM; d++){
       force[d]  += (Cr*(dot_mui_muj*rij[d] + dot_muj_r*mui[d] + dot_mui_r*muj[d])
                     - Dr*dot_mui_r*dot_muj_r*rij[d]);
-      torque[d] += (-Br*cross_mui_muj[d] + Cr*cross_mui_r[d]*dot_muj_r);
-      field[d]  += (-Br*muj[d] + Cr*rij[d]*dot_muj_r);
+      field[d] += (-Br*muj[d] + Cr*rij[d]*dot_muj_r);
     }
+  }
+  { //torque on dipoles
+    torque[0] = mui[1]*field[2] - mui[2]*field[1];
+    torque[1] = mui[2]*field[0] - mui[0]*field[2];
+    torque[2] = mui[0]*field[1] - mui[1]*field[0];
   }
 }
 void ewald_minimum_image(double & energy,

@@ -18,6 +18,7 @@ OBJS3 = test_two_random.o $(AUX_OBJS)
 OBJS4 = test_hundred_random.o $(AUX_OBJS)
 OBJS5 = test_charge_hundred_random.o $(AUX_OBJS)
 OBJS6 = test_fcc.o $(AUX_OBJS)
+OBJS7 = test_hundred_random_charge_dipole.o $(AUX_OBJS)
 
 TEST0 = test_zero
 TEST1 = test_one
@@ -26,13 +27,14 @@ TEST3 = test_two_random
 TEST4 = test_hundred_random
 TEST5 = test_charge_hundred_random
 TEST6 = test_fcc
+TEST7 = test_hundred_q+mu
 
 ## Implicit rules
 
 .SUFFIXES: .c .cxx .o .out
 
 ## Build rules
-all: $(TEST0) $(TEST1) $(TEST2) $(TEST3) $(TEST4) $(TEST5) $(TEST6)
+all: $(TEST0) $(TEST1) $(TEST2) $(TEST3) $(TEST4) $(TEST5) $(TEST6) $(TEST7)
 
 $(TEST0): $(OBJS0)
 	$(CXX) $(OBJS0) -o $(TEST0).x $(CFLAGS) $(LINKS)
@@ -54,6 +56,9 @@ $(TEST5): $(OBJS5)
 
 $(TEST6): $(OBJS6)
 	$(CXX) $(OBJS6) -o $(TEST6).x $(CFLAGS) $(LINKS)
+
+$(TEST7): $(OBJS7)
+	$(CXX) $(OBJS7) -o $(TEST7).x $(CFLAGS) $(LINKS)
 
 ## Compile
 

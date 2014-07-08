@@ -490,11 +490,19 @@ void ewald::compute_r(double &energy, double* force, double* torque, double* efi
           }
         }
         if(DIPOLE){
-          //dipole - dipole
           dot_mui_r = v_inner_prod(mui, rij);
           dot_muj_r = v_inner_prod(muj, rij);
           dot_mui_muj = v_inner_prod(mui, muj);
-          
+
+          //charge - dipole
+          if(CHARGE){
+            dmy_energy += Br*(qi*dot_muj_r - qj*dot_mui_r);
+            for(int d = 0; d < DIM; d++){
+              dmy_force[d] += Cr*(qi*dot_muj_r - qj*dot_mui_r)*rij[d] - Br*(qi*muj[d] - qj*mui[d]);
+            }
+          }
+
+          //dipole - dipole          
           dmy_energy += Br*dot_mui_muj - Cr*dot_mui_r*dot_muj_r;
           for(int d = 0; d < DIM; d++){
             dmy_force[d] += Cr*(dot_mui_muj*rij[d] + dot_mui_r*muj[d] + dot_muj_r*mui[d])
