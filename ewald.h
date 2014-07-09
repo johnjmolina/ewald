@@ -148,8 +148,9 @@ class ewald {
   void compute_trig_k(const int&ll, const int&mm, const int&nn);
   void precompute_trig_k(double const* r);
   void compute_rho_k(double &rho_re, double &rho_im, 
+                     double const* r,
                      double const* q, double const* mu, double const* theta,
-                     double const kk[DIM], double const* coskr, double const* sinkr
+                     double const kk[DIM]
                      ) const;
 
   void copy_cell(const int &domain, int** old_cell, int** &new_cell);

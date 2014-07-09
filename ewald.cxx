@@ -241,20 +241,20 @@ void ewald::init_domain_k(const double &ewald_delta, const double &ewald_conv){
   kmax_m = max_m;
   kmax_n = max_n;
   
-  coskr_l = alloc_2d_double(kmax_l + 1, nump);
-  sinkr_l = alloc_2d_double(kmax_l + 1, nump);
+  //  coskr_l = alloc_2d_double(kmax_l + 1, nump);
+  //  sinkr_l = alloc_2d_double(kmax_l + 1, nump);
 
-  coskr_m = alloc_2d_double(kmax_m + 1, nump);
-  sinkr_m = alloc_2d_double(kmax_m + 1, nump);
+  //  coskr_m = alloc_2d_double(kmax_m + 1, nump);
+  //  sinkr_m = alloc_2d_double(kmax_m + 1, nump);
   
-  coskr_n = alloc_2d_double(kmax_n + 1, nump);
-  sinkr_n = alloc_2d_double(kmax_n + 1, nump);
+  //  coskr_n = alloc_2d_double(kmax_n + 1, nump);
+  //  sinkr_n = alloc_2d_double(kmax_n + 1, nump);
 
-  coskr_lm = alloc_1d_double(nump);
-  sinkr_lm = alloc_1d_double(nump);
+  //  coskr_lm = alloc_1d_double(nump);
+  //  sinkr_lm = alloc_1d_double(nump);
 
-  coskr = alloc_1d_double(nump);
-  sinkr = alloc_1d_double(nump);
+  //  coskr = alloc_1d_double(nump);
+  //  sinkr = alloc_1d_double(nump);
 
 
   fprintf(stderr, "# Number of k-points: %d\n", ewald_domain);
@@ -278,16 +278,16 @@ void ewald::free_domain_k(){
   free_2d_int(ewald_cell);
   free_2d_double(ewald_k);
 
-  free_2d_double(coskr_l);
-  free_2d_double(sinkr_l);
-  free_2d_double(coskr_m);
-  free_2d_double(sinkr_m);
-  free_2d_double(coskr_n);
-  free_2d_double(sinkr_n);
-  free_1d_double(coskr_lm);
-  free_1d_double(sinkr_lm);
-  free_1d_double(coskr);
-  free_1d_double(sinkr);
+  //  free_2d_double(coskr_l);
+  //  free_2d_double(sinkr_l);
+  //  free_2d_double(coskr_m);
+  //  free_2d_double(sinkr_m);
+  //  free_2d_double(coskr_n);
+  //  free_2d_double(sinkr_n);
+  //  free_1d_double(coskr_lm);
+  //  free_1d_double(sinkr_lm);
+  //  free_1d_double(coskr);
+  //  free_1d_double(sinkr);
 }
 
 ewald::ewald(parallelepiped *_cell,
@@ -639,31 +639,43 @@ void ewald::compute_trig_k(const int& ll, const int& mm, const int& nn){
 }
 
 inline void ewald::compute_rho_k(double &rho_re, double &rho_im, 
+                                 double const* r,
                                  double const* q, double const* mu, double const* theta,
-                                 double const kk[DIM], double const* coskr, double const* sinkr
+                                 double const kk[DIM]
                                  ) const{
   rho_re = rho_im = 0.0;
   if(CHARGE && DIPOLE){
 #pragma omp parallel for schedule(dynamic, 1) reduction(+:rho_re, rho_im)
     for(int j = 0; j < nump; j++){
-      const double* muj = &mu[j*DIM];
+      const int jj = j * DIM; 
+      const double* rj  = &r[jj];
+      const double* muj = &mu[jj];
+      const double  kr = kk[0]*rj[0] + kk[1]*rj[1] + kk[2]*rj[2];
+      const double  coskr_j = cos(kr);
+      const double  sinkr_j = sin(kr);
       double dot_mu_k   = muj[0]*kk[0] + muj[1]*kk[1] + muj[2]*kk[2];
-      rho_re += q[j]*coskr[j] - dot_mu_k*sinkr[j];
-      rho_im += q[j]*sinkr[j] + dot_mu_k*coskr[j];
+      rho_re += q[j]*coskr_j - dot_mu_k*sinkr_j;
+      rho_im += q[j]*sinkr_j + dot_mu_k*coskr_j;
     }
   }else if(CHARGE && !DIPOLE){
 #pragma omp parallel for schedule(dynamic, 1) reduction(+:rho_re, rho_im)
     for(int j = 0; j < nump; j++){
-      rho_re += q[j]*coskr[j];
-      rho_im += q[j]*sinkr[j];
+      const int jj = j * DIM;
+      const double* rj = &r[jj];
+      const double  kr = kk[0]*rj[0] + kk[1]*rj[1] + kk[2]*rj[2];
+      rho_re += q[j]*cos(kr);
+      rho_im += q[j]*sin(kr);
     }
   }else if(!CHARGE && DIPOLE){
 #pragma omp parallel for schedule(dynamic, 1) reduction(+:rho_re, rho_im)
     for(int j = 0; j < nump; j++){
-      const double* muj = &mu[j*DIM];
+      const int jj = j * DIM;
+      const double* rj = &r[jj];
+      const double* muj= &mu[jj];
+      const double  kr = kk[0]*rj[0] + kk[1]*rj[1] + kk[2]*rj[2];
       double dot_mu_k   = muj[0]*kk[0] + muj[1]*kk[1] + muj[2]*kk[2];
-      rho_re -= dot_mu_k*sinkr[j];
-      rho_im += dot_mu_k*coskr[j];
+      rho_re -= dot_mu_k*sin(kr);
+      rho_im += dot_mu_k*cos(kr);
     }
   }
 }
@@ -676,10 +688,10 @@ void ewald::compute_k(double &energy, double* force, double* torque, double* efi
   double dmy_energy, dmy_force, dmy_efield;
   dmy_energy = dmy_force = dmy_efield = 0.0;
   
-  this->precompute_trig_k(r);
+  //  this->precompute_trig_k(r);
   for(int i = 0; i < ewald_domain; i++){
     //compute cos(kr) and sin(kr) terms for all particles
-    this->compute_trig_k(ewald_cell[i][0], ewald_cell[i][1], ewald_cell[i][2]);
+    //    this->compute_trig_k(ewald_cell[i][0], ewald_cell[i][1], ewald_cell[i][2]);
 
     //k vector in cartesian (lab) coordinates
     double &k0 = ewald_k[i][0];
@@ -687,7 +699,7 @@ void ewald::compute_k(double &energy, double* force, double* torque, double* efi
     double &k2 = ewald_k[i][2];
 
     double rho_re, rho_im;
-    this->compute_rho_k(rho_re, rho_im, q, mu, theta, ewald_k[i], coskr, sinkr);
+    this->compute_rho_k(rho_re, rho_im, r, q, mu, theta, ewald_k[i]);
 
     double kk = k0*k0 + k1*k1 + k2*k2;
     double ewald_damp  = exp(kk*eta_exp)/kk;
@@ -698,14 +710,18 @@ void ewald::compute_k(double &energy, double* force, double* torque, double* efi
 #pragma omp parallel for schedule(dynamic, 1) private(dmy_force, dmy_efield)
     for(int j = 0; j < nump; j++){
       int jj = j * DIM;
+      const double* rj  = &r[jj];
       const double* pmu = (DIPOLE ? &mu[jj] : mu_zero);
       const double  qj  = (CHARGE ? q[j] : 0.0);
+      const double  kr  = k0*rj[0] + k1*rj[1] + k2*rj[2];
+      const double coskr_j = cos(kr);
+      const double sinkr_j = sin(kr);
       double dot_mu_k = pmu[0]*k0 + pmu[1]*k1 + pmu[2]*k2;
-      double qq_re    = -(qj*sinkr[j] + dot_mu_k*coskr[j]);
-      double qq_im    =  (qj*coskr[j] - dot_mu_k*sinkr[j]);
+      double qq_re    = -(qj*sinkr_j + dot_mu_k*coskr_j);
+      double qq_im    =  (qj*coskr_j - dot_mu_k*sinkr_j);
 
       dmy_force = -ewald_damp*(qq_re*rho_re + qq_im*rho_im);
-      dmy_efield = -ewald_damp*(coskr[j]*rho_im - sinkr[j]*rho_re);
+      dmy_efield = -ewald_damp*(coskr_j*rho_im - sinkr_j*rho_re);
 
       force[jj]   += dmy_force * k0;
       force[jj+1] += dmy_force * k1;
