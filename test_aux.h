@@ -171,10 +171,6 @@ bool load_gold(const char* save_buffer){
   return loaded;
 }
 void compute_gold(const char* save_buffer){
-  fprintf(stderr, "******* Minimum Image Calculation\n");
-  ewald_minimum_image(energy_gold, force_gold, torque_gold, efield_gold, num, *cell, r, q, mu, stderr, save_buffer);
-  show_results(num, energy_gold, force_gold, torque_gold, efield_gold, stderr);
-
 
   fprintf(stderr, "******* Direct Sum Calculation\n");  
   if(!load_gold(save_buffer)){

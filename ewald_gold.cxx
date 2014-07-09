@@ -141,18 +141,13 @@ void ewald_direct_sum(double &energy,
   double dmy_energy;
   double rij[DIM];
   clock_t start_t, end_t;
-  double cpu_t, cpu_t2;
+  double cpu_t;
 
 
   // generate spherical shells of periodic cells 
   rcell.get_lengths(lbox[0], lbox[1], lbox[2]);
   nshell_list(ncut, lbox[0], lbox[1], lbox[2], 
 	      lmax, mmax, nmax, ntot, nmag, nlist, fout);
-  start_t = clock();
-  ewald_direct_sum_naive(energy, force, torque, field, lmax, mmax, nmax, Nparticles, rcell, 
-                         r, q, mu, fout, save_buffer);
-  end_t = clock();
-  cpu_t2 = ((double)end_t - start_t)/CLOCKS_PER_SEC;
 
   start_t = clock();
   energy = shell_energy = 0.0;
@@ -247,7 +242,7 @@ void ewald_direct_sum(double &energy,
   }
   end_t = clock();
   cpu_t = ((double)end_t - start_t)/CLOCKS_PER_SEC;
-  fprintf(fout, "\tExecution Time: spherical (naive)= %12.5f (%12.5f)\n", cpu_t, cpu_t2);
+  fprintf(fout, "\tExecution Time: %12.5f \n", cpu_t);
 }
 
 void ewald_direct_sum_naive(double &energy, 
