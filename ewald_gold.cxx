@@ -6,12 +6,18 @@ inline void pair_interaction(const double rij[DIM],
                              const double &qi, const double &qj,
                              const double mui[DIM], const double muj[DIM],
                              double &energy, 
-                             double force[DIM], double torque[DIM], double field[DIM]
+                             double force[DIM], 
+			     double torque[DIM], 
+			     double field[DIM],
+			     double field_grad[DIM][DIM]
                              ){
   energy = 0.0;
   force[0] = force[1] = force[2] = 0.0;
   torque[0] = torque[1] = torque[2] = 0.0;
   field[0] = field[1] = field[2] = 0.0;
+  field_grad[0][0] = field_grad[0][1] = field_grad[0][2] = 0.0;
+  field_grad[1][0] = field_grad[1][1] = field_grad[1][2] = 0.0;
+  field_grad[2][0] = field_grad[2][1] = field_grad[2][2] = 0.0;
 
   double rr = sqrt(rij[0]*rij[0] + rij[1]*rij[1] + rij[2]*rij[2]);
   double dri = 1.0/rr;
@@ -58,6 +64,7 @@ void ewald_minimum_image(double & energy,
                          double **force,
                          double **torque,
                          double **field,
+			 double ***field_grad,
                          const int &Nparticles,
                          const parallelepiped &rcell,
                          double const* const* r,
@@ -67,7 +74,7 @@ void ewald_minimum_image(double & energy,
                          const char* save_buffer
                          ){
   double dmy_energy;
-  double dmy_force[DIM], dmy_torque[DIM], dmy_field[DIM];
+  double dmy_force[DIM], dmy_torque[DIM], dmy_field[DIM], dmy_field_grad[DIM][DIM];
   double rij_mi[DIM];
   for(int i = 0; i < Nparticles; i++){
     const double qi   = q[i];
@@ -80,7 +87,7 @@ void ewald_minimum_image(double & energy,
       if(i != j){
         rcell.distance_MI(r[i], r[j], rij_mi);
         pair_interaction(rij_mi, qi, qj, mui, muj, 
-                         dmy_energy, dmy_force, dmy_torque, dmy_field);
+                         dmy_energy, dmy_force, dmy_torque, dmy_field, dmy_field_grad);
         
         energy += (dmy_energy/2.0);
         for(int d = 0; d < DIM; d++){
@@ -112,6 +119,7 @@ void ewald_direct_sum(double &energy,
                       double **force, 
                       double **torque, 
                       double **field, 
+		      double ***field_grad,
                       const int &ncut,
                       const int &Nparticles,
                       const parallelepiped &rcell,
@@ -137,6 +145,7 @@ void ewald_direct_sum(double &energy,
   double dmy_force[DIM];
   double dmy_torque[DIM];
   double dmy_field[DIM];
+  double dmy_field_grad[DIM][DIM];
   double lbox[DIM];
   double dmy_energy;
   double rij[DIM];
@@ -182,7 +191,8 @@ void ewald_direct_sum(double &energy,
 	    for(int d = 0; d < DIM; d++){
 	      rij[d] = (ri[d] - rj[d]) + (double)icell[d]*lbox[d];
 	    }
-            pair_interaction(rij, qi, qj, mui, muj, dmy_energy, dmy_force, dmy_torque, dmy_field);
+            pair_interaction(rij, qi, qj, mui, muj, dmy_energy, dmy_force, dmy_torque, 
+			     dmy_field, dmy_field_grad);
 	    
 	    shell_energy += (dmy_energy/2.0);
 	    for(int d = 0; d < DIM; d++){
@@ -208,12 +218,13 @@ void ewald_direct_sum(double &energy,
       }
       if(i == 0){
 	fprintf(fout, 
-		"%3d %10d %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f\n",
+		"%3d %10d %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f\n",
 		nshell, (int) shell.size(),
 		shell_energy, energy,
 		force[0][0], force[0][1], force[0][2],
 		torque[0][0], torque[0][1], torque[0][2],
-		field[0][0], field[0][1], field[0][2]);
+		field[0][0], field[0][1], field[0][2],
+		field_grad[0][0][0], field_grad[0][1][1], field_grad[0][2][2]);
       }
       shell_energy = 0.0;
       for(int d = 0; d < DIM; d++){
@@ -232,10 +243,13 @@ void ewald_direct_sum(double &energy,
     fprintf(fsave, "%d\n", Nparticles);
     fprintf(fsave, "%20.12E\n", energy);
     for(int i = 0; i < Nparticles; i++){
-      fprintf(fsave, "%20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E\n", 
+      fprintf(fsave, "%20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E \n", 
               force[i][0], force[i][1], force[i][2],
               torque[i][0], torque[i][1], torque[i][2],
-              field[i][0], field[i][1], field[i][2]
+              field[i][0], field[i][1], field[i][2],
+	      field_grad[i][0][0], field_grad[i][0][1], field_grad[i][0][2],
+	      field_grad[i][1][0], field_grad[i][1][1], field_grad[i][1][2],
+	      field_grad[i][2][0], field_grad[i][2][1], field_grad[i][2][2]
               );
     }
     fclose(fsave);
@@ -249,6 +263,7 @@ void ewald_direct_sum_naive(double &energy,
                             double **force, 
                             double **torque, 
                             double **field,
+			    double ***field_grad,
                             const int &lmax, 
                             const int &mmax, 
                             const int &nmax,
@@ -265,6 +280,7 @@ void ewald_direct_sum_naive(double &energy,
   double dmy_force[DIM];
   double dmy_torque[DIM];
   double dmy_field[DIM];
+  double dmy_field_grad[DIM][DIM];
   double dmy_energy;
   double rij[DIM];
 
@@ -299,7 +315,8 @@ void ewald_direct_sum_naive(double &energy,
 	      for(int d = 0; d < DIM; d++){
 		rij[d] = (ri[d] - rj[d]) + (double)icell[d]*lbox[d];
 	      }
-              pair_interaction(rij, qi, qj, mui, muj, dmy_energy, dmy_force, dmy_torque, dmy_field);
+              pair_interaction(rij, qi, qj, mui, muj, dmy_energy, dmy_force, dmy_torque,
+			       dmy_field, dmy_field_grad);
 
 	      energy+= (dmy_energy/2.0);
 	      for(int d = 0; d < DIM; d++){
