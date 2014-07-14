@@ -75,32 +75,73 @@ class ewald {
         const bool& with_dipole, 
         const bool& with_quadrupole
         );
-  void reset(double *force, double *torque, double *efield);
+
+  void add_group(const int &gid, const int &num_elem, const int* pid);
+
+  void reset(double *force, 
+	     double *torque, 
+	     double *efield,
+	     double *efield_grad);
 
   void reset_boundary(const double &ewald_epsilon);
 
-  void compute(double* E_ewald,double* force, double* torque, double* efield,
-               double const* r, double const* q,  double const* mu, double const* theta,
+  void compute(double* E_ewald,
+	       double* force, 
+	       double* torque, 
+	       double* efield,
+	       double* efield_grad,
+               double const* r, 
+	       double const* q,  
+	       double const* mu, 
+	       double const* theta,
                const char* save_buffer);
 
-  void compute_r(double& energy, double* force, double* torque, double* efield,
-                 double const* r, double const* q, double const* mu, double const* theta) const;
+  void compute_r(double& energy, 
+		 double* force, 
+		 double* torque, 
+		 double* efield,
+		 double* efield_grad,
+                 double const* r, 
+		 double const* q, 
+		 double const* mu, 
+		 double const* theta) const;
 
-  void compute_k(double& energy, double* force, double* torque, double* efield,
-                 double const* r, double const* q, double const* mu, double const* theta);
+  void compute_k(double& energy, 
+		 double* force, 
+		 double* torque, 
+		 double* efield,
+		 double* efield_grad,
+                 double const* r, 
+		 double const* q,
+		 double const* mu, 
+		 double const* theta);
 
-  void compute_surface(double &energy, double* force, double* torque, double* efield, 
-		       double const* r, double const* q, double const* mu, double const* theta) const;
+  void compute_surface(double &energy, 
+		       double* force, 
+		       double* torque, 
+		       double* efield, 
+		       double* efield_grad,
+		       double const* r,
+		       double const* q, 
+		       double const* mu, 
+		       double const* theta) const;
 
-  void compute_self(double &energy, double* force, double* torque, double* efield, 
-		    double const* r, double const* q, double const* mu, double const* theta) const;
-
+  void compute_self(double &energy, 
+		    double* force, 
+		    double* torque, 
+		    double* efield, 
+		    double* efield_grad,
+		    double const* r,
+		    double const* q, 
+		    double const* mu, 
+		    double const* theta) const;
 
   ~ewald();
 
  private:
   //particle data
   int nump;
+  int* group;
 
   //ewald parameters
   double rcut, r2max;

@@ -301,8 +301,13 @@ ewald::ewald(parallelepiped *_cell,
              const bool& with_quadrupole){
   cell = _cell;
 
-  //particle parameters
+  {//particle parameters
   nump = num_particles;
+    group  = alloc_1d_int(nump);
+    for(int i = 1; i <= nump; i++){
+      group[i] = -i;
+    }
+  }
   
   {//ewald parameters
     rcut = (cell->wmin)/2.0;
@@ -322,14 +327,31 @@ ewald::ewald(parallelepiped *_cell,
     this->init_domain_k(ewald_delta, ewald_conv);
   }
 }
+ewald::~ewald(){
+  free_1d_int(group);
+  this->free_domain_k();
+}
 
-void ewald::reset(double *force, double *torque, double *efield){
+void ewald::add_group(const int &gid, const int &num_elem, const int* pid){
+  for(int i = 0; i < num_elem; i++){
+    group[pid[i]] = gid;
+  }
+}
+
+void ewald::reset(double *force, 
+		  double *torque, 
+		  double *efield,
+		  double *efield_grad){
 #pragma omp parallel for schedule(dynamic, 1)
   for(int i = 0; i < nump; i++){
     int ii = i * DIM;
     force[ii] = force[ii+1] = force[ii+2] = 0.0;
     torque[ii] = torque[ii+1] = torque[ii+2] = 0.0;
     efield[ii] = efield[ii+1] = efield[ii+2] = 0.0;
+
+    efield_grad[ii] = efield_grad[ii+1] = efield_grad[ii+2] = 0.0;
+    efield_grad[ii+3] = efield_grad[ii+4] = efield_grad[ii+5] = 0.0;
+    efield_grad[ii+6] = efield_grad[ii+7] = efield_grad[ii+8] = 0.0;
   }
 }
 
@@ -338,38 +360,63 @@ void ewald::reset_boundary(const double &ewald_epsilon){
   TINFOIL = (epsilon_bnd < 0 ? true : false);
 }
 
-void ewald::compute_self(double &energy, double* force, double* torque, double* efield,
-                         double const* r, double const* q, double const* mu, double const* theta) const{
+void ewald::compute_self(double &energy, 
+			 double* force, 
+			 double* torque, 
+			 double* efield,
+			 double* efield_grad,
+                         double const* r, 
+			 double const* q, 
+			 double const* mu, 
+			 double const* theta) const{
+
+  const double eta_factor = eta*iRoot_PI;
+  const double eta3_factor = 4.0/3.0*eta3*iRoot_PI;
 
   if(CHARGE){
-    double q_factor = eta*iRoot_PI;
     double dmy_energy = 0.0;
-#pragma omp parallel for schedule(dynamic, 1) reduction(+:dmy_energy)
+    double dmy_grad   = 0.0;
+#pragma omp parallel for schedule(dynamic, 1) private(dmy_grad) \
+  reduction(+:dmy_energy)
     for(int i = 0; i < nump; i++){
+      const int ii = i * DIM;
       dmy_energy += q[i]*q[i];
+
+      dmy_grad = (-eta3_factor*q[i]);
+      efield_grad[ii]   += dmy_grad;  //xx
+      efield_grad[ii+4] += dmy_grad;  //yy
+      efield_grad[ii+8] += dmy_grad;  //zz
     }
-    energy += (-q_factor*dmy_energy);
+    energy += (-eta_factor*dmy_energy);
   }
+
   if(DIPOLE){
-    double mu_factor = 4.0/3.0*eta3*iRoot_PI;
     double dmy_energy = 0.0;
 #pragma omp parallel for schedule(dynamic, 1) reduction(+:dmy_energy)
     for(int i = 0; i < nump; i++){
-      int ii = i * DIM;
+      const int ii = i * DIM;
       const double* mui = &mu[ii];
       dmy_energy   += mui[0]*mui[0] + mui[1]*mui[1] + mui[2]*mui[2];
-      efield[ii]   += mu_factor*mui[0];
-      efield[ii+1] += mu_factor*mui[1];
-      efield[ii+2] += mu_factor*mui[2];
+      efield[ii]   += eta3_factor*mui[0];
+      efield[ii+1] += eta3_factor*mui[1];
+      efield[ii+2] += eta3_factor*mui[2];
     }
-    energy += (-mu_factor*dmy_energy/2.0);
+    energy += (-eta3_factor*dmy_energy/2.0);
   }
+
   if(QUADRUPOLE){
     //TODO: self + efield_gradient + torque
-  }
+    }
 }
-void ewald::compute_surface(double &energy, double* force, double* torque, double* efield,
-                            double const* r, double const* q, double const* mu, double const* theta) const{
+void ewald::compute_surface(double &energy, 
+			    double* force, 
+			    double* torque, 
+			    double* efield,
+			    double* efield_grad,
+                            double const* r, 
+			    double const* q, 
+			    double const* mu, 
+			    double const* theta) const{
   if(!TINFOIL){
     
     double sum_qr0, sum_qr1, sum_qr2;
@@ -429,31 +476,47 @@ void ewald::compute_surface(double &energy, double* force, double* torque, doubl
   }
 }
 
-void ewald::compute_r(double &energy, double* force, double* torque, double* efield,
-                      double const* r, double const* q, double const* mu, double const* theta) const{
+void ewald::compute_r(double &energy, 
+		      double* force, 
+		      double* torque, 
+		      double* efield,
+		      double* efield_grad,
+                      double const* r, 
+		      double const* q, 
+		      double const* mu, 
+		      double const* theta) const{
 
   const double mu_zero[DIM] = {0.0, 0.0, 0.0};
   double dmy_energy = 0.0;
 
 #pragma omp parallel for schedule(dynamic, 1) reduction(+:dmy_energy)
   for(int j = 1; j < nump; j++){
-    int jj = j*DIM;
+    const int jj = j*DIM;
+    const int jid= group[j];
+
     double rij[DIM];
-    double etar, etar2, etar_pi, exp_ewald, erfc_ewald;
-    double drij, drij2, drij3, drij5;
+    double exp_ewald, erfc_ewald;
+    double drij, drij2;
     double Br, Cr, Dr;
     double dot_mui_r, dot_muj_r, dot_mui_muj;
 
     double dmy_force[DIM];
     double dmy_efieldi[DIM], dmy_efieldj[DIM];
+    double dmy_efieldi_dx[DIM], dmy_efieldi_dy[DIM], dmy_efieldi_dz[DIM];
+    double dmy_efieldj_dx[DIM], dmy_efieldj_dy[DIM], dmy_efieldj_dz[DIM];
 
     const double  qj  = (CHARGE ? q[j] : 0.0);
     const double* muj = (DIPOLE ? &mu[jj] : mu_zero);
     for(int i = 0; i < j; i++){
-      int ii = i*DIM;
+      const int ii = i*DIM;
+      const int iid= group[i];
+
+      //i and j belong to different group
+      if(jid != iid){
+
       cell->distance_MI(&r[ii], &r[jj], rij);
       drij = rij[0]*rij[0] + rij[1]*rij[1] + rij[2]*rij[2];
-
+	//i and j within cutoff distance
       if(drij < r2max){
         const double  qi  = (CHARGE ? q[i] : 0.0);
         const double* mui = (DIPOLE ? &mu[ii] : mu_zero);
@@ -461,22 +524,29 @@ void ewald::compute_r(double &energy, double* force, double* torque, double* efi
         dmy_efieldi[0] = dmy_efieldi[1] = dmy_efieldi[2] = 0.0;
         dmy_efieldj[0] = dmy_efieldj[1] = dmy_efieldj[2] = 0.0;
         
+        dmy_efieldi_dx[0] = dmy_efieldi_dx[1] = dmy_efieldi_dx[2] = 0.0;
+        dmy_efieldi_dy[0] = dmy_efieldi_dy[1] = dmy_efieldi_dy[2] = 0.0;
+        dmy_efieldi_dz[0] = dmy_efieldi_dz[1] = dmy_efieldi_dz[2] = 0.0;
+        
+        dmy_efieldj_dx[0] = dmy_efieldj_dx[1] = dmy_efieldj_dx[2] = 0.0;
+        dmy_efieldj_dy[0] = dmy_efieldj_dy[1] = dmy_efieldj_dy[2] = 0.0;
+        dmy_efieldj_dz[0] = dmy_efieldj_dz[1] = dmy_efieldj_dz[2] = 0.0;
+        
         drij = sqrt(drij);
-        etar  = eta*drij;
-        etar2 = etar*etar;
-        etar_pi= 2.0*etar*iRoot_PI;
-        exp_ewald = exp(-etar2);
-        erfc_ewald = erfc(etar);
+        erfc_ewald = erfc(eta*drij);
+        exp_ewald  = exp(-eta2*drij*drij);
 
         drij = 1.0 / drij;
         drij2= drij*drij;
-        drij3= drij2*drij;
-        drij5= drij3*drij2;
 
-        Br = (erfc_ewald + etar_pi*exp_ewald) * drij3;
-        Cr = (3.0*erfc_ewald + etar_pi*(3.0 + 2.0*etar2)*exp_ewald) * drij5;
-        Dr = (15.0*erfc_ewald + etar_pi*(15.0 + 10.0*etar2 + 4.0*etar2*etar2)*exp_ewald) 
-	  * drij5 * drij2;
+        exp_ewald *= 2.0*eta*iRoot_PI;
+        Br = (erfc_ewald*drij + exp_ewald) * drij2;
+
+        exp_ewald *= 2.0*eta2;
+        Cr = (3.0 * Br + exp_ewald) * drij2;
+
+        exp_ewald *= 2.0*eta2;
+        Dr = (5.0 * Cr + exp_ewald) * drij2;
 
         if(CHARGE){
           //charge - charge term
@@ -487,7 +557,22 @@ void ewald::compute_r(double &energy, double* force, double* torque, double* efi
             
             dmy_efieldi[d] += (qj*Br*rij[d]);
             dmy_efieldj[d] += (-qi*Br*rij[d]);
+
+	      dmy_efieldi_dx[d] += (-qi*Cr*rij[0]*rij[d]);
+	      dmy_efieldi_dy[d] += (-qi*Cr*rij[1]*rij[d]);
+	      dmy_efieldi_dz[d] += (-qi*Cr*rij[2]*rij[d]);
+
+	      dmy_efieldj_dx[d] += (qj*Cr*rij[0]*rij[d]);
+	      dmy_efieldj_dy[d] += (qj*Cr*rij[1]*rij[d]);
+	      dmy_efieldj_dz[d] += (qj*Cr*rij[2]*rij[d]);
           }
+	    dmy_efieldi_dx[0] += qi*Br;
+	    dmy_efieldi_dy[1] += qi*Br;
+	    dmy_efieldj_dz[2] += qi*Br;
+
+	    dmy_efieldj_dx[0] += qj*Br;
+	    dmy_efieldj_dy[1] += qj*Br;
+	    dmy_efieldj_dz[2] += qj*Br;
         }
         if(DIPOLE){
           dot_mui_r = v_inner_prod(mui, rij);
@@ -513,6 +598,7 @@ void ewald::compute_r(double &energy, double* force, double* torque, double* efi
           }
         }
 
+	  {
 	//forces
 #pragma omp atomic
 	force[ii]   += dmy_force[0];
@@ -524,7 +610,9 @@ void ewald::compute_r(double &energy, double* force, double* torque, double* efi
 	force[jj]   -= dmy_force[0];
 	force[jj+1] -= dmy_force[1];
 	force[jj+2] -= dmy_force[2];
+	  }
 
+	  {
 	//electric fields
 #pragma omp atomic
 	efield[ii]   += dmy_efieldi[0];
@@ -536,6 +624,39 @@ void ewald::compute_r(double &energy, double* force, double* torque, double* efi
 	efield[jj]   += dmy_efieldj[0];
 	efield[jj+1] += dmy_efieldj[1];
 	efield[jj+2] += dmy_efieldj[2];
+	  }
+
+	  //gradient of electric fields
+	  {
+#pragma omp atomic
+	    efield_grad[ii]   += dmy_efieldi_dx[0];
+#pragma omp atomic
+	    efield_grad[ii+1] += dmy_efieldi_dx[1];
+#pragma omp atomic
+	    efield_grad[ii+2] += dmy_efieldi_dx[2];
+#pragma omp atomic
+	    efield_grad[ii+3] += dmy_efieldi_dy[0];
+#pragma omp atomic
+	    efield_grad[ii+4] += dmy_efieldi_dy[1];
+#pragma omp atomic
+	    efield_grad[ii+5] += dmy_efieldi_dy[2];
+#pragma omp atomic
+	    efield_grad[ii+6] += dmy_efieldi_dz[0];
+#pragma omp atomic
+	    efield_grad[ii+7] += dmy_efieldi_dz[1];
+#pragma omp atomic
+	    efield_grad[ii+8] += dmy_efieldi_dz[2];
+
+	    efield_grad[jj]   += dmy_efieldj_dx[0];
+	    efield_grad[jj+1] += dmy_efieldj_dx[1];
+	    efield_grad[jj+2] += dmy_efieldj_dx[2];
+	    efield_grad[jj+3] += dmy_efieldj_dy[0];
+	    efield_grad[jj+4] += dmy_efieldj_dy[1];
+	    efield_grad[jj+5] += dmy_efieldj_dy[2];
+	    efield_grad[jj+6] += dmy_efieldj_dz[0];
+	    efield_grad[jj+7] += dmy_efieldj_dz[1];
+	    efield_grad[jj+8] += dmy_efieldj_dz[2];
+	  }
 	
 	//torques
         if(DIPOLE){
@@ -554,6 +675,7 @@ void ewald::compute_r(double &energy, double* force, double* torque, double* efi
           //TODO: add torque due to gradient of electric field
         }
       }//rij < r2max
+      }//jid != iid
     }//i
   }//j
   energy += dmy_energy;
@@ -667,14 +789,21 @@ inline void ewald::compute_rho_k(double &rho_re, double &rho_im,
     }
   }
 }
-void ewald::compute_k(double &energy, double* force, double* torque, double* efield, 
-                      double const* r, double const* q, double const* mu, double const* theta){
+void ewald::compute_k(double &energy, 
+		      double* force, 
+		      double* torque, 
+		      double* efield, 
+		      double* efield_grad,
+                      double const* r, 
+		      double const* q, 
+		      double const* mu, 
+		      double const* theta){
 
   if(!CHARGE && !DIPOLE) return;
 
   const double mu_zero[DIM] = {0.0, 0.0, 0.0};
-  double dmy_energy, dmy_force, dmy_efield;
-  dmy_energy = dmy_force = dmy_efield = 0.0;
+  double dmy_energy, dmy_force, dmy_efield, dmy_efield_grad;
+  dmy_energy = dmy_force = dmy_efield = dmy_efield_grad = 0.0;
   
   this->precompute_trig_k(r);
   for(int i = 0; i < ewald_domain; i++){
@@ -695,7 +824,7 @@ void ewald::compute_k(double &energy, double* force, double* torque, double* efi
 
     ewald_damp *= (cell->PI8iVol);
 
-#pragma omp parallel for schedule(dynamic, 1) private(dmy_force, dmy_efield)
+#pragma omp parallel for schedule(dynamic, 1) private(dmy_force, dmy_efield, dmy_efield_grad)
     for(int j = 0; j < nump; j++){
       int jj = j * DIM;
       const double* pmu = (DIPOLE ? &mu[jj] : mu_zero);
@@ -706,6 +835,7 @@ void ewald::compute_k(double &energy, double* force, double* torque, double* efi
 
       dmy_force = -ewald_damp*(qq_re*rho_re + qq_im*rho_im);
       dmy_efield = -ewald_damp*(coskr[j]*rho_im - sinkr[j]*rho_re);
+      dmy_efield_grad = ewald_damp*(coskr[j]*rho_re + sinkr[j]*rho_im);
 
       force[jj]   += dmy_force * k0;
       force[jj+1] += dmy_force * k1;
@@ -714,6 +844,16 @@ void ewald::compute_k(double &energy, double* force, double* torque, double* efi
       efield[jj]   += dmy_efield * k0;
       efield[jj+1] += dmy_efield * k1;
       efield[jj+2] += dmy_efield * k2;
+
+      efield_grad[jj]   += dmy_efield_grad * k0 * k0;  //xx
+      efield_grad[jj+1] += dmy_efield_grad * k0 * k1;  //xy
+      efield_grad[jj+2] += dmy_efield_grad * k0 * k2;  //xz
+      efield_grad[jj+3] += dmy_efield_grad * k1 * k0;  //yx
+      efield_grad[jj+4] += dmy_efield_grad * k1 * k1;  //yy
+      efield_grad[jj+5] += dmy_efield_grad * k1 * k2;  //yz
+      efield_grad[jj+6] += dmy_efield_grad * k2 * k0;  //zx
+      efield_grad[jj+7] += dmy_efield_grad * k2 * k1;  //zy
+      efield_grad[jj+8] += dmy_efield_grad * k2 * k2;  //zz
 
       if(DIPOLE){
         torque[jj]   += dmy_efield * (pmu[1] * k2 - pmu[2] * k1);
@@ -728,8 +868,15 @@ void ewald::compute_k(double &energy, double* force, double* torque, double* efi
   energy += (cell->PI4iVol)*dmy_energy;
 }
 
-void ewald::compute(double* E_ewald, double* force, double* torque, double* efield,
-                    double const* r, double const* q, double const* mu, double const* theta,
+void ewald::compute(double* E_ewald, 
+		    double* force, 
+		    double* torque, 
+		    double* efield,
+		    double* efield_grad,
+                    double const* r, 
+		    double const* q,
+		    double const* mu,
+		    double const* theta,
                     const char* save_buffer
                ){
   double &e_r = E_ewald[1];
@@ -740,11 +887,11 @@ void ewald::compute(double* E_ewald, double* force, double* torque, double* efie
   clock_t start_t, end_t;
   double cpu_t;
   start_t = clock();
-  this->reset(force, torque, efield);
-  this->compute_r(e_r, force, torque, efield, r, q, mu, theta);
-  this->compute_k(e_k, force, torque, efield, r, q, mu, theta);
-  this->compute_self(e_self, force, torque, efield, r, q, mu, theta);
-  this->compute_surface(e_surface, force, torque, efield, r, q, mu, theta);
+  this->reset(force, torque, efield, efield_grad);
+  this->compute_r(e_r, force, torque, efield, efield_grad, r, q, mu, theta);
+  this->compute_k(e_k, force, torque, efield, efield_grad, r, q, mu, theta);
+  this->compute_self(e_self, force, torque, efield, efield_grad, r, q, mu, theta);
+  this->compute_surface(e_surface, force, torque, efield, efield_grad, r, q, mu, theta);
   end_t = clock();
 
   cpu_t = ((double)end_t - start_t)/CLOCKS_PER_SEC;
@@ -790,8 +937,4 @@ void ewald::compute(double* E_ewald, double* force, double* torque, double* efie
       fclose(fcp2k);
     }
   }
-}
-
-ewald::~ewald(){
-  this->free_domain_k();
 }
