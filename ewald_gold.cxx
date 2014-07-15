@@ -32,28 +32,44 @@ inline void pair_interaction(const double rij[DIM],
     for(int d = 0; d < DIM; d++){
       force[d]  += qi*qj*Br*rij[d];
       field[d]  += qj*Br*rij[d];
+
+      field_grad[d][d] += qj*Br;
+      const double dmy_grad = (-qj*Cr*rij[d]);
+      field_grad[d][0] += (dmy_grad*rij[0]);
+      field_grad[d][1] += (dmy_grad*rij[1]);
+      field_grad[d][2] += (dmy_grad*rij[2]);
     }
   }
+
   {  //dipole interactions
     double dot_mui_r = v_inner_prod(mui, rij);
     double dot_muj_r = v_inner_prod(muj, rij);
     double dot_mui_muj = v_inner_prod(mui, muj);
     
-    //charge-dipole
+    //charge
     energy += (qi*dot_muj_r - qj*dot_mui_r)*Br;
     for(int d = 0; d < DIM; d++){
       force[d] += (Cr*(qi*dot_muj_r - qj*dot_mui_r)*rij[d]
                    - Br*(qi*muj[d] - qj*mui[d]));
     }
 
-    //dipole-dipole
+    //dipole
     energy += (Br*dot_mui_muj - Cr*dot_mui_r*dot_muj_r);
     for(int d = 0; d < DIM; d++){
       force[d]  += (Cr*(dot_mui_muj*rij[d] + dot_muj_r*mui[d] + dot_mui_r*muj[d])
                     - Dr*dot_mui_r*dot_muj_r*rij[d]);
       field[d] += (-Br*muj[d] + Cr*rij[d]*dot_muj_r);
+      
+      field_grad[d][d] += (Cr*dot_muj_r);
+      const double dmy_grad1 = Cr*rij[d];
+      const double dmy_grad2 = Cr*muj[d];
+      const double dmy_grad3 = -Dr*dot_muj_r*rij[d];
+      field_grad[d][0] += (dmy_grad1*muj[0] + dmy_grad2*rij[0] + dmy_grad3*rij[0]);
+      field_grad[d][1] += (dmy_grad1*muj[1] + dmy_grad2*rij[1] + dmy_grad3*rij[1]);
+      field_grad[d][2] += (dmy_grad1*muj[2] + dmy_grad2*rij[2] + dmy_grad3*rij[2]);
     }
   }
+
   { //torque on dipoles
     torque[0] = mui[1]*field[2] - mui[2]*field[1];
     torque[1] = mui[2]*field[0] - mui[0]*field[2];
@@ -94,6 +110,10 @@ void ewald_minimum_image(double & energy,
           force[i][d]  += dmy_force[d];
           torque[i][d] += dmy_torque[d];
           field[i][d]  += dmy_field[d];
+
+          field_grad[i][d][0] += dmy_field_grad[d][0];
+          field_grad[i][d][1] += dmy_field_grad[d][1];
+          field_grad[i][d][2] += dmy_field_grad[d][2];
         }
       }
     }
@@ -106,10 +126,13 @@ void ewald_minimum_image(double & energy,
     fprintf(fsave, "%d\n", Nparticles);
     fprintf(fsave, "%20.12E\n", energy);
     for(int i = 0; i < Nparticles; i++){
-      fprintf(fsave, "%20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E\n",
+      fprintf(fsave, "%20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E\n",
               force[i][0], force[i][1], force[i][2],
               torque[i][0], torque[i][1], torque[i][2],
-              field[i][0], field[i][1], field[i][2]
+              field[i][0], field[i][1], field[i][2],
+              field_grad[i][0][0], field_grad[i][0][1], field_grad[i][0][2],
+              field_grad[i][1][0], field_grad[i][1][1], field_grad[i][1][2],
+              field_grad[i][2][0], field_grad[i][2][1], field_grad[i][2][2]
               );
     }
     fclose(fsave);
@@ -141,6 +164,7 @@ void ewald_direct_sum(double &energy,
   double** shell_force = (double**)alloc_2d_double(Nparticles, DIM);
   double** shell_torque = (double**)alloc_2d_double(Nparticles, DIM);
   double** shell_field = (double**)alloc_2d_double(Nparticles, DIM);
+  double*** shell_field_grad = (double***)alloc_3d_double(Nparticles, DIM, DIM);
   double shell_energy;
   double dmy_force[DIM];
   double dmy_torque[DIM];
@@ -165,6 +189,10 @@ void ewald_direct_sum(double &energy,
       force[i][d] = shell_force[i][d] = 0.0;
       torque[i][d] = shell_torque[i][d] = 0.0;
       field[i][d] = shell_field[i][d] = 0.0;
+
+      field_grad[i][d][0] = shell_field_grad[i][d][0] = 0.0;
+      field_grad[i][d][1] = shell_field_grad[i][d][1] = 0.0;
+      field_grad[i][d][2] = shell_field_grad[i][d][2] = 0.0;
     }
   }
 
@@ -199,6 +227,10 @@ void ewald_direct_sum(double &energy,
 	      shell_force[i][d] += dmy_force[d];
 	      shell_torque[i][d] += dmy_torque[d];
 	      shell_field[i][d] += dmy_field[d];
+
+              shell_field_grad[i][d][0] += dmy_field_grad[d][0];
+              shell_field_grad[i][d][1] += dmy_field_grad[d][1];
+              shell_field_grad[i][d][2] += dmy_field_grad[d][2];
 	    }
 	    
 	  }//valid pairs
@@ -215,6 +247,10 @@ void ewald_direct_sum(double &energy,
 	force[i][d] += shell_force[i][d];
 	torque[i][d] += shell_torque[i][d];
 	field[i][d] += shell_field[i][d];
+
+        field_grad[i][d][0] += shell_field_grad[i][d][0];
+        field_grad[i][d][1] += shell_field_grad[i][d][1];
+        field_grad[i][d][2] += shell_field_grad[i][d][2];
       }
       if(i == 0){
 	fprintf(fout, 
@@ -231,6 +267,10 @@ void ewald_direct_sum(double &energy,
 	shell_force[i][d] = 0.0;
 	shell_torque[i][d] = 0.0;
 	shell_field[i][d] = 0.0;
+
+        shell_field_grad[i][d][0] = 0.0;
+        shell_field_grad[i][d][1] = 0.0;
+        shell_field_grad[i][d][2] = 0.0;
       }
     }//i
 
@@ -290,6 +330,10 @@ void ewald_direct_sum_naive(double &energy,
       force[i][d] = 0.0;
       torque[i][d] = 0.0;
       field[i][d] = 0.0;
+
+      field_grad[i][d][0] = 0.0;
+      field_grad[i][d][1] = 0.0;
+      field_grad[i][d][2] = 0.0;
     }
   }
   rcell.get_lengths(lbox[0], lbox[1], lbox[2]);
@@ -323,6 +367,10 @@ void ewald_direct_sum_naive(double &energy,
 		force[i][d] += dmy_force[d];
 		torque[i][d] += dmy_torque[d];
 		field[i][d] += dmy_field[d];
+
+                field_grad[i][d][0] += dmy_field_grad[d][0];
+                field_grad[i][d][1] += dmy_field_grad[d][1];
+                field_grad[i][d][2] += dmy_field_grad[d][2];
 	      }
 
 	    }//valid pairs
@@ -339,10 +387,13 @@ void ewald_direct_sum_naive(double &energy,
     fprintf(fsave, "%d\n", Nparticles);
     fprintf(fsave, "%20.12E\n", energy);
     for(int i = 0; i < Nparticles; i++){
-      fprintf(fsave, "%20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E\n", 
+      fprintf(fsave, "%20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E\n", 
               force[i][0], force[i][1], force[i][2],
               torque[i][0], torque[i][1], torque[i][2],
-              field[i][0], field[i][1], field[i][2]
+              field[i][0], field[i][1], field[i][2],
+              field_grad[i][0][0], field_grad[i][0][1], field_grad[i][0][2],
+              field_grad[i][1][0], field_grad[i][1][1], field_grad[i][1][2],
+              field_grad[i][2][0], field_grad[i][2][1], field_grad[i][2][2]
               );
     }
     fclose(fsave);
