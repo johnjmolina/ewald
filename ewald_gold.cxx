@@ -61,12 +61,12 @@ inline void pair_interaction(const double rij[DIM],
       field[d] += (-Br*muj[d] + Cr*rij[d]*dot_muj_r);
       
       field_grad[d][d] += (Cr*dot_muj_r);
-      const double dmy_grad1 = Cr*rij[d];
-      const double dmy_grad2 = Cr*muj[d];
+      const double dmy_grad1 = Cr*muj[d];
+      const double dmy_grad2 = Cr*rij[d];
       const double dmy_grad3 = -Dr*dot_muj_r*rij[d];
-      field_grad[d][0] += (dmy_grad1*muj[0] + dmy_grad2*rij[0] + dmy_grad3*rij[0]);
-      field_grad[d][1] += (dmy_grad1*muj[1] + dmy_grad2*rij[1] + dmy_grad3*rij[1]);
-      field_grad[d][2] += (dmy_grad1*muj[2] + dmy_grad2*rij[2] + dmy_grad3*rij[2]);
+      field_grad[0][d] += (dmy_grad1*rij[0] + dmy_grad2*muj[0] + dmy_grad3*rij[0]);
+      field_grad[1][d] += (dmy_grad1*rij[1] + dmy_grad2*muj[1] + dmy_grad3*rij[1]);
+      field_grad[2][d] += (dmy_grad1*rij[2] + dmy_grad2*muj[2] + dmy_grad3*rij[2]);
     }
   }
 
