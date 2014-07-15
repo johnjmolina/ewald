@@ -26,6 +26,7 @@ inline void pair_interaction(const double rij[DIM],
   double Br = dr2i*dri;
   double Cr = 3.0*Br*dr2i;
   double Dr = 5.0*Cr*dr2i;
+  double Er = 7.0*Dr*dr2i;
 
   { //charge interactions
     energy += qi*qj*dri;
@@ -34,10 +35,9 @@ inline void pair_interaction(const double rij[DIM],
       field[d]  += qj*Br*rij[d];
 
       field_grad[d][d] += qj*Br;
-      const double dmy_grad = (-qj*Cr*rij[d]);
-      field_grad[d][0] += (dmy_grad*rij[0]);
-      field_grad[d][1] += (dmy_grad*rij[1]);
-      field_grad[d][2] += (dmy_grad*rij[2]);
+      field_grad[d][0] += (-qj*Cr*rij[d]*rij[0]);
+      field_grad[d][1] += (-qj*Cr*rij[d]*rij[1]);
+      field_grad[d][2] += (-qj*Cr*rij[d]*rij[2]);
     }
   }
 
@@ -61,12 +61,9 @@ inline void pair_interaction(const double rij[DIM],
       field[d] += (-Br*muj[d] + Cr*rij[d]*dot_muj_r);
       
       field_grad[d][d] += (Cr*dot_muj_r);
-      const double dmy_grad1 = Cr*muj[d];
-      const double dmy_grad2 = Cr*rij[d];
-      const double dmy_grad3 = -Dr*dot_muj_r*rij[d];
-      field_grad[0][d] += (dmy_grad1*rij[0] + dmy_grad2*muj[0] + dmy_grad3*rij[0]);
-      field_grad[1][d] += (dmy_grad1*rij[1] + dmy_grad2*muj[1] + dmy_grad3*rij[1]);
-      field_grad[2][d] += (dmy_grad1*rij[2] + dmy_grad2*muj[2] + dmy_grad3*rij[2]);
+      field_grad[d][0] += (Cr*rij[d]*muj[0] + Cr*muj[d]*rij[0] - Dr*dot_muj_r*rij[d]*rij[0]);
+      field_grad[d][1] += (Cr*rij[d]*muj[1] + Cr*muj[d]*rij[1] - Dr*dot_muj_r*rij[d]*rij[1]);
+      field_grad[d][2] += (Cr*rij[d]*muj[2] + Cr*muj[d]*rij[2] - Dr*dot_muj_r*rij[d]*rij[2]);
     }
   }
 

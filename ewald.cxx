@@ -499,11 +499,11 @@ void ewald::compute_r(double &energy,
     const int jid= group[j];
     
     double rij[DIM];
-    double exp_ewald, erfc_ewald;
+    double erfc_ewald;
     double drij, drij2;
     double Br, Cr, Dr, Er;
     double dot_mui_r, dot_muj_r, dot_mui_muj;
-    double dmy_grad1, dmy_grad2, dmy_grad3;
+    double dmy_0, dmy_1, dmy_2, dmy_3;
     
     double dmy_force[DIM];
     double dmy_efieldi[DIM], dmy_efieldj[DIM];
@@ -540,56 +540,50 @@ void ewald::compute_r(double &energy,
           
           drij = sqrt(drij);
           erfc_ewald = erfc(eta*drij);
-          exp_ewald  = exp(-eta2*drij*drij);
-          
+          dmy_0 = exp(-eta2*drij*drij);
           drij = 1.0 / drij;
           drij2= drij*drij;
-          
-          exp_ewald *= 2.0*eta*iRoot_PI;
-          Br = (erfc_ewald*drij + exp_ewald) * drij2;
-          
-          exp_ewald *= 2.0*eta2;
-          Cr = (3.0 * Br + exp_ewald) * drij2;
-          
-          exp_ewald *= 2.0*eta2;
-          Dr = (5.0 * Cr + exp_ewald) * drij2;
 
-          exp_ewald *= 2.0*eta2;
-          Er = (7.0 * Dr + exp_ewald) * drij2;
+          dmy_0 *= 2.0*eta*iRoot_PI;
+          Br = (erfc_ewald*drij + dmy_0) * drij2;
+          
+          dmy_0 *= 2.0*eta2;
+          Cr = (3.0 * Br + dmy_0) * drij2;
+          
+          dmy_0 *= 2.0*eta2;
+          Dr = (5.0 * Cr + dmy_0) * drij2;
+
+          dmy_0 *= 2.0*eta2;
+          Er = (7.0 * Dr + dmy_0) * drij2;
           
           if(CHARGE){
-            //charge - charge term
             dmy_energy += erfc_ewald*drij*qi*qj;
             
             for(int d = 0; d < DIM; d++){
-              dmy_force[d] += qj*qi*Br*rij[d];
+              dmy_0 = Br*rij[d];
+              dmy_force[d]   += qj*qi*dmy_0;
+              dmy_efieldi[d] += qj*dmy_0;
+              dmy_efieldj[d] += (-qi*dmy_0);
               
-              dmy_efieldi[d] += (qj*Br*rij[d]);
-              dmy_efieldj[d] += (-qi*Br*rij[d]);
-              
-              dmy_grad3 = (-Cr*rij[d]);
-              dmy_grad1 = qj*dmy_grad3;
-              dmy_grad2 = qi*dmy_grad3;
-              
-              dmy_efieldi_dx[d] += (dmy_grad1*rij[0]);
-              dmy_efieldi_dy[d] += (dmy_grad1*rij[1]);
-              dmy_efieldi_dz[d] += (dmy_grad1*rij[2]);
-              
-              dmy_efieldj_dx[d] += (dmy_grad2*rij[0]);
-              dmy_efieldj_dy[d] += (dmy_grad2*rij[1]);
-              dmy_efieldj_dz[d] += (dmy_grad2*rij[2]);
+              dmy_0 = (-Cr*rij[d]);
+              dmy_1 = qj * dmy_0;
+              dmy_2 = qi * dmy_0;
+              dmy_efieldi_dx[d] += (dmy_1*rij[0]);
+              dmy_efieldi_dy[d] += (dmy_1*rij[1]);
+              dmy_efieldi_dz[d] += (dmy_1*rij[2]);
+              dmy_efieldj_dx[d] += (dmy_2*rij[0]);
+              dmy_efieldj_dy[d] += (dmy_2*rij[1]);
+              dmy_efieldj_dz[d] += (dmy_2*rij[2]);
             }
             
-            dmy_grad1 = qj*Br;
-            dmy_grad2 = qi*Br;
-            
-            dmy_efieldi_dx[0] += dmy_grad1;
-            dmy_efieldi_dy[1] += dmy_grad1;
-            dmy_efieldi_dz[2] += dmy_grad1;
-            
-            dmy_efieldj_dx[0] += dmy_grad2;
-            dmy_efieldj_dy[1] += dmy_grad2;
-            dmy_efieldj_dz[2] += dmy_grad2;
+            dmy_0 = qj*Br;
+            dmy_1 = qi*Br;
+            dmy_efieldi_dx[0] += dmy_0;
+            dmy_efieldi_dy[1] += dmy_0;
+            dmy_efieldi_dz[2] += dmy_0;
+            dmy_efieldj_dx[0] += dmy_1;
+            dmy_efieldj_dy[1] += dmy_1;
+            dmy_efieldj_dz[2] += dmy_1;
           }
 
           if(DIPOLE){
@@ -600,41 +594,41 @@ void ewald::compute_r(double &energy,
             //charge - dipole
             if(CHARGE){
               dmy_energy += Br*(qi*dot_muj_r - qj*dot_mui_r);
-              for(int d = 0; d < DIM; d++){
-                dmy_force[d] += Cr*(qi*dot_muj_r - qj*dot_mui_r)*rij[d] - Br*(qi*muj[d] - qj*mui[d]);
+              dmy_0 = Cr*(qi*dot_muj_r - qj*dot_mui_r);
+              dmy_1 = qj*Br;
+              dmy_2 = -qi*Br;
+              for(int d = 0; d < DIM; d++) dmy_force[d] += (dmy_0*rij[d] + dmy_1*mui[d] + dmy_2*muj[d]);
               }
-            }
             
             //dipole - dipole          
             dmy_energy += Br*dot_mui_muj - Cr*dot_mui_r*dot_muj_r;
             for(int d = 0; d < DIM; d++){
-              dmy_force[d] += Cr*(dot_mui_muj*rij[d] + dot_mui_r*muj[d] + dot_muj_r*mui[d])
-                - Dr*(dot_mui_r*dot_muj_r*rij[d]);
+              dmy_0 = rij[d] * Cr;
+              dmy_1 = muj[d] * Cr;
+              dmy_2 = mui[d] * Cr;
+              dmy_3 = -rij[d] * dot_muj_r * Dr;
               
-              dmy_efieldi[d] += (-Br*muj[d] + Cr*rij[d]*dot_muj_r);
-              dmy_efieldj[d] += (-Br*mui[d] + Cr*rij[d]*dot_mui_r);
+              dmy_force[d] += (dmy_0*dot_mui_muj + (dmy_1+dmy_3)*dot_mui_r + dmy_2*dot_muj_r);
+              dmy_efieldi[d] += (-Br*muj[d] + dmy_0*dot_muj_r);
+              dmy_efieldj[d] += (-Br*mui[d] + dmy_0*dot_mui_r);
               
-              dmy_grad1 = Cr*muj[d];
-              dmy_grad2 = Cr*rij[d];
-              dmy_grad3 = -Dr*dot_muj_r*rij[d];
-              dmy_efieldi_dx[d] += (dmy_grad1*rij[0] + dmy_grad2*muj[0] + dmy_grad3*rij[0]);
-              dmy_efieldi_dy[d] += (dmy_grad1*rij[1] + dmy_grad2*muj[1] + dmy_grad3*rij[1]);
-              dmy_efieldi_dz[d] += (dmy_grad1*rij[2] + dmy_grad2*muj[2] + dmy_grad3*rij[2]);
+              dmy_efieldi_dx[d] += (dmy_0*muj[0] + dmy_1*rij[0] + dmy_3*rij[0]);
+              dmy_efieldi_dy[d] += (dmy_0*muj[1] + dmy_1*rij[1] + dmy_3*rij[1]);
+              dmy_efieldi_dz[d] += (dmy_0*muj[2] + dmy_1*rij[2] + dmy_3*rij[2]);
               
-              dmy_grad1 = Cr*mui[d];
-              dmy_grad3 = -Dr*dot_mui_r*rij[d];
-              dmy_efieldj_dx[d] -= (dmy_grad1*rij[0] + dmy_grad2*mui[0] + dmy_grad3*rij[0]);
-              dmy_efieldj_dy[d] -= (dmy_grad1*rij[1] + dmy_grad2*mui[1] + dmy_grad3*rij[1]);
-              dmy_efieldj_dz[d] -= (dmy_grad1*rij[2] + dmy_grad2*mui[2] + dmy_grad3*rij[2]);
+              dmy_3 = -rij[d] * dot_mui_r * Dr;
+              dmy_efieldj_dx[d] -= (dmy_0*mui[0] + dmy_2*rij[0] + dmy_3*rij[0]);
+              dmy_efieldj_dy[d] -= (dmy_0*mui[1] + dmy_2*rij[1] + dmy_3*rij[1]);
+              dmy_efieldj_dz[d] -= (dmy_0*mui[2] + dmy_2*rij[2] + dmy_3*rij[2]);
             }
-            dmy_grad1 = dot_muj_r*Cr;
-            dmy_grad2 = -dot_mui_r*Cr;
-            dmy_efieldi_dx[0] += dmy_grad1;
-            dmy_efieldi_dy[1] += dmy_grad1;
-            dmy_efieldi_dz[2] += dmy_grad1;
-            dmy_efieldj_dx[0] += dmy_grad2;
-            dmy_efieldj_dy[1] += dmy_grad2;
-            dmy_efieldj_dz[2] += dmy_grad2;
+            dmy_0 = Cr*dot_muj_r;
+            dmy_1 = -Cr*dot_mui_r;
+            dmy_efieldi_dx[0] += dmy_0;
+            dmy_efieldi_dy[1] += dmy_0;
+            dmy_efieldi_dz[2] += dmy_0;
+            dmy_efieldj_dx[0] += dmy_1;
+            dmy_efieldj_dy[1] += dmy_1;
+            dmy_efieldj_dz[2] += dmy_1;
           }
           
           {
@@ -841,7 +835,7 @@ void ewald::compute_k(double &energy,
   if(!CHARGE && !DIPOLE) return;
 
   const double mu_zero[DIM] = {0.0, 0.0, 0.0};
-  double dmy_energy, dmy_force, dmy_efield, dmy_efield_grad;
+  double dmy_energy, dmy_force, dmy_efield, dmy_efield_grad, dmy_efield_grad0;
   dmy_energy = dmy_force = dmy_efield = dmy_efield_grad = 0.0;
   
   this->precompute_trig_k(r);
@@ -863,7 +857,7 @@ void ewald::compute_k(double &energy,
 
     ewald_damp *= (cell->PI8iVol);
 
-#pragma omp parallel for schedule(dynamic, 1) private(dmy_force, dmy_efield, dmy_efield_grad)
+#pragma omp parallel for schedule(dynamic, 1) private(dmy_force, dmy_efield, dmy_efield_grad0, dmy_efield_grad)
     for(int j = 0; j < nump; j++){
       const int jj = j * DIM;
       const int jjj= jj * DIM;
@@ -875,7 +869,7 @@ void ewald::compute_k(double &energy,
 
       dmy_force = -ewald_damp*(qq_re*rho_re + qq_im*rho_im);
       dmy_efield = -ewald_damp*(coskr[j]*rho_im - sinkr[j]*rho_re);
-      dmy_efield_grad = ewald_damp*(coskr[j]*rho_re + sinkr[j]*rho_im);
+      dmy_efield_grad0 = ewald_damp*(coskr[j]*rho_re + sinkr[j]*rho_im);
 
       force[jj]   += dmy_force * k0;
       force[jj+1] += dmy_force * k1;
@@ -885,15 +879,20 @@ void ewald::compute_k(double &energy,
       efield[jj+1] += dmy_efield * k1;
       efield[jj+2] += dmy_efield * k2;
 
-      efield_grad[jjj]   += dmy_efield_grad * k0 * k0;  //xx
-      efield_grad[jjj+1] += dmy_efield_grad * k0 * k1;  //xy
-      efield_grad[jjj+2] += dmy_efield_grad * k0 * k2;  //xz
-      efield_grad[jjj+3] += dmy_efield_grad * k1 * k0;  //yx
-      efield_grad[jjj+4] += dmy_efield_grad * k1 * k1;  //yy
-      efield_grad[jjj+5] += dmy_efield_grad * k1 * k2;  //yz
-      efield_grad[jjj+6] += dmy_efield_grad * k2 * k0;  //zx
-      efield_grad[jjj+7] += dmy_efield_grad * k2 * k1;  //zy
-      efield_grad[jjj+8] += dmy_efield_grad * k2 * k2;  //zz
+      dmy_efield_grad = dmy_efield_grad0*k0;
+      efield_grad[jjj]   += dmy_efield_grad * k0;  //xx
+      efield_grad[jjj+1] += dmy_efield_grad * k1;  //xy
+      efield_grad[jjj+2] += dmy_efield_grad * k2;  //xz
+      
+      dmy_efield_grad = dmy_efield_grad0*k1;
+      efield_grad[jjj+3] += dmy_efield_grad * k0;  //yx
+      efield_grad[jjj+4] += dmy_efield_grad * k1;  //yy
+      efield_grad[jjj+5] += dmy_efield_grad * k2;  //yz
+      
+      dmy_efield_grad = dmy_efield_grad0*k2;
+      efield_grad[jjj+6] += dmy_efield_grad * k0;  //zx
+      efield_grad[jjj+7] += dmy_efield_grad * k1;  //zy
+      efield_grad[jjj+8] += dmy_efield_grad * k2;  //zz
 
       if(DIPOLE){
         torque[jj]   += dmy_efield * (pmu[1] * k2 - pmu[2] * k1);
