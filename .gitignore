@@ -6,5 +6,6 @@ alloc.*
 k_vec.dat
 *.o
 *.x
+*.orig
 reference
 cp2k

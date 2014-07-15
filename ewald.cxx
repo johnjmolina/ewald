@@ -406,7 +406,7 @@ void ewald::compute_self(double &energy,
 
   if(QUADRUPOLE){
     //TODO: self + efield_gradient + torque
-    }
+  }
 }
 void ewald::compute_surface(double &energy, 
 			    double* force, 
