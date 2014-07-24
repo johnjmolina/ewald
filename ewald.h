@@ -139,6 +139,9 @@ class ewald {
   ~ewald();
 
  private:
+  static const double mu_zero[DIM];
+  static const double theta_zero[DIM*DIM];
+
   //particle data
   int nump;
   int* group;

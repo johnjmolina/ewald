@@ -5,6 +5,7 @@
 inline void pair_interaction(const double rij[DIM],
                              const double &qi, const double &qj,
                              const double mui[DIM], const double muj[DIM],
+                             const double thetai[DIM*DIM], const double thetaj[DIM*DIM],
                              double &energy, 
                              double force[DIM], 
 			     double torque[DIM], 
@@ -28,6 +29,35 @@ inline void pair_interaction(const double rij[DIM],
   double Dr = 5.0*Cr*dr2i;
   double Er = 7.0*Dr*dr2i;
 
+  double mui_r = v_inner_prod(mui, rij);
+  double muj_r = v_inner_prod(muj, rij);
+  double mui_muj = v_inner_prod(mui, muj);
+
+  double tr_thetai = thetai[0] + thetai[4] + thetai[8];
+  double tr_thetaj = thetaj[0] + thetaj[4] + thetaj[8];
+  double r_thetai[DIM], r_thetaj[DIM];
+  double thetai_r[DIM], thetaj_r[DIM];
+  double sym_thetai_r[DIM], sym_thetaj_r[DIM];
+  v_M_prod(r_thetai, rij, thetai);
+  v_M_prod(r_thetaj, rij, thetaj);
+  M_v_prod(thetai_r, thetai, rij);
+  M_v_prod(thetaj_r, thetaj, rij);
+  for(int d = 0; d < DIM; d++){
+    sym_thetai_r[d] = r_thetai[d] + thetai_r[d];
+    sym_thetaj_r[d] = r_thetaj[d] + thetaj_r[d];
+  }
+
+  double tr_thetai_thetaj = 0.0;
+  double tr_thetai_ttthetaj = 0.0;
+  for(int i = 0; i < DIM; i++){
+    tr_thetai_thetaj += (thetai[i*DIM]*thetaj[i] + thetai[i*DIM+1]*thetaj[DIM+i] + thetai[i*DIM+2]*thetaj[2*DIM+i]);
+    tr_thetai_ttthetaj += (thetai[i*DIM]*thetaj[i*DIM] + thetai[i*DIM+1]*thetaj[i*DIM+1] + thetai[i*DIM+2]*thetaj[i*DIM+2]);
+  }
+
+  double r_thetai_r = rij[0]*thetai_r[0] + rij[1]*thetai_r[1] + rij[2]*thetai_r[2];
+  double r_thetaj_r = rij[0]*thetaj_r[0] + rij[1]*thetaj_r[1] + rij[2]*thetaj_r[2];
+
+
   { //charge interactions
     energy += qi*qj*dri;
     for(int d = 0; d < DIM; d++){
@@ -41,30 +71,44 @@ inline void pair_interaction(const double rij[DIM],
     }
   }
 
-  {  //dipole interactions
-    double dot_mui_r = v_inner_prod(mui, rij);
-    double dot_muj_r = v_inner_prod(muj, rij);
-    double dot_mui_muj = v_inner_prod(mui, muj);
-    
+  { //dipole interactions
     //charge
-    energy += (qi*dot_muj_r - qj*dot_mui_r)*Br;
+    energy += (qi*muj_r - qj*mui_r)*Br;
     for(int d = 0; d < DIM; d++){
-      force[d] += (Cr*(qi*dot_muj_r - qj*dot_mui_r)*rij[d]
+      force[d] += (Cr*(qi*muj_r - qj*mui_r)*rij[d]
                    - Br*(qi*muj[d] - qj*mui[d]));
     }
 
     //dipole
-    energy += (Br*dot_mui_muj - Cr*dot_mui_r*dot_muj_r);
+    energy += (Br*mui_muj - Cr*mui_r*muj_r);
     for(int d = 0; d < DIM; d++){
-      force[d]  += (Cr*(dot_mui_muj*rij[d] + dot_muj_r*mui[d] + dot_mui_r*muj[d])
-                    - Dr*dot_mui_r*dot_muj_r*rij[d]);
-      field[d] += (-Br*muj[d] + Cr*rij[d]*dot_muj_r);
+      force[d]  += (Cr*(mui_muj*rij[d] + muj_r*mui[d] + mui_r*muj[d])
+                    - Dr*mui_r*muj_r*rij[d]);
+      field[d] += (-Br*muj[d] + Cr*rij[d]*muj_r);
       
-      field_grad[d][d] += (Cr*dot_muj_r);
-      field_grad[d][0] += (Cr*rij[d]*muj[0] + Cr*muj[d]*rij[0] - Dr*dot_muj_r*rij[d]*rij[0]);
-      field_grad[d][1] += (Cr*rij[d]*muj[1] + Cr*muj[d]*rij[1] - Dr*dot_muj_r*rij[d]*rij[1]);
-      field_grad[d][2] += (Cr*rij[d]*muj[2] + Cr*muj[d]*rij[2] - Dr*dot_muj_r*rij[d]*rij[2]);
+      field_grad[d][d] += (Cr*muj_r);
+      field_grad[d][0] += (Cr*rij[d]*muj[0] + Cr*muj[d]*rij[0] - Dr*muj_r*rij[d]*rij[0]);
+      field_grad[d][1] += (Cr*rij[d]*muj[1] + Cr*muj[d]*rij[1] - Dr*muj_r*rij[d]*rij[1]);
+      field_grad[d][2] += (Cr*rij[d]*muj[2] + Cr*muj[d]*rij[2] - Dr*muj_r*rij[d]*rij[2]);
     }
+  }
+
+  { //quadrupole interactions
+    //charge
+    energy += (-Br*(qi*tr_thetaj + qj*tr_thetai) + Cr*(qi*r_thetaj_r + qj*r_thetai_r) ) / 3.0;
+    
+    //dipole
+    energy += (Cr*((mui_r*tr_thetaj - muj_r*tr_thetai)
+                   +(mui[0]*sym_thetaj_r[0] + mui[1]*sym_thetaj_r[1] + mui[2]*sym_thetaj_r[2])
+                   -(muj[0]*sym_thetai_r[0] + muj[1]*sym_thetai_r[1] + muj[2]*sym_thetai_r[2]))
+                   -Dr*(mui_r*r_thetaj_r - muj_r*r_thetai_r) )/3.0;
+
+    //quadrupole
+    energy += (Cr*(tr_thetai*tr_thetaj + tr_thetai_thetaj + tr_thetai_ttthetaj)
+               -Dr*((r_thetai_r*tr_thetaj + r_thetaj_r*tr_thetai)
+                    +(sym_thetai_r[0]*sym_thetaj_r[0] + sym_thetai_r[1]*sym_thetaj_r[1] + sym_thetai_r[2]*sym_thetaj_r[2]))
+               +Er*r_thetai_r*r_thetaj_r
+               )/9.0;
   }
 
   { //torque on dipoles
@@ -83,6 +127,7 @@ void ewald_minimum_image(double & energy,
                          double const* const* r,
                          double const* q,
                          double const* const* mu,
+                         double const* const* const* theta,
                          FILE* fout,
                          const char* save_buffer
                          ){
@@ -92,14 +137,16 @@ void ewald_minimum_image(double & energy,
   for(int i = 0; i < Nparticles; i++){
     const double qi   = q[i];
     const double* mui = mu[i];
+    const double* thetai = theta[i][0];
 
     for(int j = 0; j < Nparticles; j++){
       const double qj   = q[j];
       const double* muj = mu[j];
+      const double* thetaj = theta[j][0];
 
       if(i != j){
         rcell.distance_MI(r[i], r[j], rij_mi);
-        pair_interaction(rij_mi, qi, qj, mui, muj, 
+        pair_interaction(rij_mi, qi, qj, mui, muj, thetai, thetaj,
                          dmy_energy, dmy_force, dmy_torque, dmy_field, dmy_field_grad);
         
         energy += (dmy_energy/2.0);
@@ -146,6 +193,7 @@ void ewald_direct_sum(double &energy,
                       double const* const* r,
                       double const* q,
                       double const* const* mu,
+                      double const* const* const* theta,
                       FILE* fout,
                       const char* save_buffer
                       ){
@@ -206,18 +254,21 @@ void ewald_direct_sum(double &energy,
         const double qi = q[i];
         const double* ri = r[i];
 	const double* mui = mu[i];
+        const double* thetai = theta[i][0];
 	
 	for(int j = 0; j < Nparticles; j++){
           const double qj = q[j];
           const double* rj = r[j];
 	  const double* muj = mu[j];
+          const double* thetaj = theta[j][0];
+
 	  if(!(i == j && ll == 0 && mm == 0 && nn == 0)){
             
 	    for(int d = 0; d < DIM; d++){
 	      rij[d] = (ri[d] - rj[d]) + (double)icell[d]*lbox[d];
 	    }
-            pair_interaction(rij, qi, qj, mui, muj, dmy_energy, dmy_force, dmy_torque, 
-			     dmy_field, dmy_field_grad);
+            pair_interaction(rij, qi, qj, mui, muj, thetai, thetaj, 
+                             dmy_energy, dmy_force, dmy_torque, dmy_field, dmy_field_grad);
 	    
 	    shell_energy += (dmy_energy/2.0);
 	    for(int d = 0; d < DIM; d++){
@@ -309,6 +360,7 @@ void ewald_direct_sum_naive(double &energy,
                             double const* const* r,
                             double const* q,
                             double const* const* mu,
+                            double const* const* const* theta,
                             FILE* fout,
                             const char* save_buffer
                             ){
@@ -346,18 +398,20 @@ void ewald_direct_sum_naive(double &energy,
           const double qi   = q[i];
           const double* ri  = r[i];
 	  const double* mui = mu[i];
+          const double* thetai = theta[i][0];
 
 	  for(int j = 0; j < Nparticles; j++){
             const double qj   = q[j];
             const double* rj  = r[j];
 	    const double* muj = mu[j];
+            const double* thetaj = theta[j][0];
             
 	    if(!(i == j && ll == 0 && mm == 0 && nn == 0)){
 	      for(int d = 0; d < DIM; d++){
 		rij[d] = (ri[d] - rj[d]) + (double)icell[d]*lbox[d];
 	      }
-              pair_interaction(rij, qi, qj, mui, muj, dmy_energy, dmy_force, dmy_torque,
-			       dmy_field, dmy_field_grad);
+              pair_interaction(rij, qi, qj, mui, muj, thetai, thetaj,
+                               dmy_energy, dmy_force, dmy_torque,dmy_field, dmy_field_grad);
 
 	      energy+= (dmy_energy/2.0);
 	      for(int d = 0; d < DIM; d++){

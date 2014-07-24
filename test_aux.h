@@ -120,15 +120,15 @@ void check_convergence(const double ener_gold, const double &ener, double rms[NE
   }
   rms[0] = rms[1] = rms[2] = rms[3] = rms[4] = 0.0;
   for(int i = 0; i < num; i++){
-    v_add_n(dmy_f, force_gold[i], force[i], DIM, -1.0);
-    v_add_n(dmy_t, torque_gold[i], torque[i], DIM ,-1.0);
-    v_add_n(dmy_e, efield_gold[i], efield[i], DIM, -1.0);
-    v_add_n(dmy_g, efield_grad_gold[i][0], efield_grad[i][0], DIM*DIM, -1.0);
+    v_add(dmy_f, force_gold[i], force[i], -1.0);
+    v_add(dmy_t, torque_gold[i], torque[i], -1.0);
+    v_add(dmy_e, efield_gold[i], efield[i], -1.0);
+    M_add(dmy_g, efield_grad_gold[i][0], efield_grad[i][0], -1.0);
 
-    rms[1] += v_sqnorm_n(dmy_f, DIM);
-    rms[2] += v_sqnorm_n(dmy_t, DIM);
-    rms[3] += v_sqnorm_n(dmy_e, DIM);
-    rms[4] += v_sqnorm_n(dmy_g, DIM*DIM);
+    rms[1] += v_sqnorm(dmy_f);
+    rms[2] += v_sqnorm(dmy_t);
+    rms[3] += v_sqnorm(dmy_e);
+    rms[4] += M_sqnorm(dmy_g);
   }
 
   rms[0] = sqrt((ener_gold - ener)*(ener_gold-ener));
@@ -199,7 +199,7 @@ void compute_gold(const char* save_buffer){
   if(!load_gold(save_buffer)){
     energy_gold = 0.0;
     ewald_direct_sum(energy_gold, force_gold, torque_gold, efield_gold, efield_grad_gold, 
-		     ndirect, num, *cell, r, q, mu, stderr, save_buffer);
+		     ndirect, num, *cell, r, q, mu, theta, stderr, save_buffer);
   }else{
     fprintf(stderr, "******* Reference results loaded from %s_gold.dat\n", save_buffer);
   }
@@ -239,7 +239,6 @@ void compute_all(const bool& charge,
 		       r[0], dmy_q, dmy_mu, dmy_theta, kbuffer);
   check_convergence(energy_gold, Ewald_energy[0], rmstol2);
   show_results(num, Ewald_energy[0], force, torque, efield, efield_grad, stderr);
-  
   print_convergence(rmstol, rmstol2, stderr);
   
   {
