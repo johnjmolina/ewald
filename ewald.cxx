@@ -422,7 +422,7 @@ void ewald::compute_self(double &energy,
       dmy_energy_q += qi*(thetai[0] + thetai[4] + thetai[8]);
       for(int j = 0; j < DIM; j++){
         const int jj = j * DIM;
-        dmy_energy_theta += (thetai[jj]*thetai[jj] + thetai[jj+1]*thetai[jj+1] + thetai[jj+2]*thetai[jj+2]);
+	dmy_energy_theta += (thetai[jj]*thetai[jj] + thetai[jj+1]*thetai[jj+1] + thetai[jj+2]*thetai[jj+2]);
       }
     }
     energy += (-eta3_factor*dmy_energy_q - eta5_factor*dmy_energy_theta)/3.0;
@@ -521,6 +521,7 @@ void ewald::compute_r(double &energy,
     double erfc_ewald;
     double drij, drij2;
     double Br, Cr, Dr, Er;
+    double mui_r, muj_r, mui_muj;
     double dmy_0, dmy_1, dmy_2, dmy_3;
     
     double dmy_force[DIM];
@@ -607,7 +608,6 @@ void ewald::compute_r(double &energy,
           }
 
           if(DIPOLE){
-            double mui_r, muj_r, mui_muj;
             mui_r = v_inner_prod(mui, rij);
             muj_r = v_inner_prod(muj, rij);
             mui_muj = v_inner_prod(mui, muj);
@@ -678,8 +678,14 @@ void ewald::compute_r(double &energy,
             double r_thetaj_r = rij[0]*thetaj_r[0] + rij[1]*thetaj_r[1] + rij[2]*thetaj_r[2];
             dmy_energy += (Cr*(tr_thetai*tr_thetaj + tr_thetai_thetaj + tr_thetai_ttthetaj)
                            -Dr*((r_thetai_r*tr_thetaj + r_thetaj_r*tr_thetai)
-                                +(sym_thetai_r[0]*sym_thetaj_r[0] + sym_thetai_r[1]*sym_thetaj_r[1] + sym_thetai_r[2]*sym_thetaj_r[2]))
+                                +(sym_thetai_r[0]*sym_thetaj_r[0] 
+                                  + sym_thetai_r[1]*sym_thetaj_r[1] 
+                                  + sym_thetai_r[2]*sym_thetaj_r[2]))
                            +Er*r_thetai_r*r_thetaj_r)/9.0;
+	    for(int d = 0; d < DIM; d++){
+	      dmy_efieldi[d] += (Dr*rij[d]*r_thetaj_r - Cr*(rij[d]*tr_thetaj + sym_thetaj_r[d]));
+	      dmy_efieldj[d] -= (Dr*rij[d]*r_thetai_r - Cr*(rij[d]*tr_thetai + sym_thetai_r[d]));
+	    }
           }
           
           {

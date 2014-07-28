@@ -109,6 +109,10 @@ inline void pair_interaction(const double rij[DIM],
                     +(sym_thetai_r[0]*sym_thetaj_r[0] + sym_thetai_r[1]*sym_thetaj_r[1] + sym_thetai_r[2]*sym_thetaj_r[2]))
                +Er*r_thetai_r*r_thetaj_r
                )/9.0;
+
+    for(int d = 0; d < DIM; d++){
+      field[d] += (Dr*rij[d]*r_thetaj_r - Cr*(rij[d]*tr_thetaj + sym_thetaj_r[d]));
+    }
   }
 
   { //torque on dipoles

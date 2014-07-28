@@ -23,15 +23,16 @@ int main(int argc, char *argv[]){
         theta[i][d][e] = theta[i][e][d] = RAx(1.0);
       }	
     }
-    double tti = (theta[i][0][0] + theta[i][1][1] + theta[i][2][2]);
-    fprintf(stderr, "tr %d : %.8E\n", i, tti);
-    /*for(int d = 0; d < DIM; d++){
-      theta[i][d][d] += (-tti/3.0);
-      }*/
+
+    double tti = -(theta[i][0][0] + theta[i][1][1] + theta[i][2][2])/3.0;
+    for(int d = 0; d < DIM; d++){
+      theta[i][d][d] += tti;
+    }
+
   }
 
   ndirect = 12;
-  compute_all(false, false, true, name);
+  compute_all(true, true, true, name);
   free();
   delete ewald_sum;
   return 0;
