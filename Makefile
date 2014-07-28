@@ -5,6 +5,7 @@ CXX      = clang++
 #CCOPT    = -O0 -g -stdlib=libc++ 
 LINKS    = -I/usr/local/include -L/usr/local/lib -lm -stdlib=libstdc++
 CCOPT    = -O0 -g -stdlib=libstdc++ 
+CFLAGS   = $(CCOPT)
 
 AUX_OBJS = alloc.o\
        ewald.o\

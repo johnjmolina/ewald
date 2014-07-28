@@ -62,8 +62,8 @@ void init(const int &num){
   epsilon= 1.0;
   ndirect= 24;
     
-  dval = (double*) malloc(num * sizeof(double));
   r = (double**) alloc_2d_double(num, DIM);
+  dval = (double*) alloc_1d_double(num);
   q = (double*) alloc_1d_double(num);
   mu= (double**) alloc_2d_double(num, DIM);
   theta = (double***) alloc_3d_double(num, DIM, DIM);
@@ -93,11 +93,13 @@ void init(const int &num){
   efield_grad_gold = (double***) alloc_3d_double(num, DIM, DIM);
 }
 void free(){
-  free(dval);
-  free_2d_double(r);
+  free_1d_double(dval);
   free_1d_double(q);
+
+  free_2d_double(r);
   free_2d_double(mu);
   free_3d_double(theta);
+
   free_2d_double(force);
   free_2d_double(torque);
   free_2d_double(efield);

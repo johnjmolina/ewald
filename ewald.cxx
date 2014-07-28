@@ -301,6 +301,14 @@ ewald::ewald(parallelepiped *_cell,
              const bool& with_charge,
              const bool& with_dipole,
              const bool& with_quadrupole){
+  TINFOIL = CHARGE = DIPOLE = QUADRUPOLE = false;
+  ewald_cell = NULL;
+  ewald_k = NULL;
+  coskr_l = coskr_m = coskr_n = NULL;
+  sinkr_l = sinkr_m = sinkr_n = NULL;
+  coskr_lm = sinkr_lm = NULL;
+  coskr = sinkr = NULL;
+
   cell = _cell;
 
   {//particle parameters
@@ -653,7 +661,6 @@ void ewald::compute_r(double &energy,
           }
 
           if(QUADRUPOLE){
-            //quad-quad
             double tr_thetai = thetai[0] + thetai[4] + thetai[8];
             double tr_thetaj = thetaj[0] + thetaj[4] + thetaj[8];
             double r_thetai[DIM], r_thetaj[DIM];
@@ -676,6 +683,18 @@ void ewald::compute_r(double &energy,
             }
             double r_thetai_r = rij[0]*thetai_r[0] + rij[1]*thetai_r[1] + rij[2]*thetai_r[2];
             double r_thetaj_r = rij[0]*thetaj_r[0] + rij[1]*thetaj_r[1] + rij[2]*thetaj_r[2];
+            
+            //charge-quad
+            dmy_energy += (-Br*(qi*tr_thetaj + qj*tr_thetai) + Cr*(qi*r_thetaj_r + qj*r_thetai_r) ) / 3.0;
+            for(int d = 0; d < DIM; d++){
+              dmy_force[d] += (Dr*rij[d]*(qj*r_thetai_r + qi*r_thetaj_r)
+                               - Cr*(rij[d]*(qj*tr_thetai + qi*tr_thetaj) + qj*sym_thetai_r[d] + qi*sym_thetaj_r[d]))/3.0;
+            }
+
+            //dipole-quad
+
+
+            //quad-quad
             dmy_energy += (Cr*(tr_thetai*tr_thetaj + tr_thetai_thetaj + tr_thetai_ttthetaj)
                            -Dr*((r_thetai_r*tr_thetaj + r_thetaj_r*tr_thetai)
                                 +(sym_thetai_r[0]*sym_thetaj_r[0] 
@@ -683,8 +702,8 @@ void ewald::compute_r(double &energy,
                                   + sym_thetai_r[2]*sym_thetaj_r[2]))
                            +Er*r_thetai_r*r_thetaj_r)/9.0;
 	    for(int d = 0; d < DIM; d++){
-	      dmy_efieldi[d] += (Dr*rij[d]*r_thetaj_r - Cr*(rij[d]*tr_thetaj + sym_thetaj_r[d]));
-	      dmy_efieldj[d] -= (Dr*rij[d]*r_thetai_r - Cr*(rij[d]*tr_thetai + sym_thetai_r[d]));
+	      dmy_efieldi[d] += (Dr*rij[d]*r_thetaj_r - Cr*(rij[d]*tr_thetaj + sym_thetaj_r[d]))/3.0;
+	      dmy_efieldj[d] -= (Dr*rij[d]*r_thetai_r - Cr*(rij[d]*tr_thetai + sym_thetai_r[d]))/3.0;
 	    }
           }
           

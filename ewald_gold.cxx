@@ -101,7 +101,7 @@ inline void pair_interaction(const double rij[DIM],
     energy += (Cr*((mui_r*tr_thetaj - muj_r*tr_thetai)
                    +(mui[0]*sym_thetaj_r[0] + mui[1]*sym_thetaj_r[1] + mui[2]*sym_thetaj_r[2])
                    -(muj[0]*sym_thetai_r[0] + muj[1]*sym_thetai_r[1] + muj[2]*sym_thetai_r[2]))
-                   -Dr*(mui_r*r_thetaj_r - muj_r*r_thetai_r) )/3.0;
+                   -Dr*(mui_r*r_thetaj_r - muj_r*r_thetai_r))/3.0;
 
     //quadrupole
     energy += (Cr*(tr_thetai*tr_thetaj + tr_thetai_thetaj + tr_thetai_ttthetaj)
@@ -111,7 +111,7 @@ inline void pair_interaction(const double rij[DIM],
                )/9.0;
 
     for(int d = 0; d < DIM; d++){
-      field[d] += (Dr*rij[d]*r_thetaj_r - Cr*(rij[d]*tr_thetaj + sym_thetaj_r[d]));
+      field[d] += (Dr*rij[d]*r_thetaj_r - Cr*(rij[d]*tr_thetaj + sym_thetaj_r[d]))/3.0;
     }
   }
 
