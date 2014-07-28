@@ -96,6 +96,10 @@ inline void pair_interaction(const double rij[DIM],
   { //quadrupole interactions
     //charge
     energy += (-Br*(qi*tr_thetaj + qj*tr_thetai) + Cr*(qi*r_thetaj_r + qj*r_thetai_r) ) / 3.0;
+    for(int d = 0; d < DIM; d++){
+      force[d] += (Dr*rij[d]*(qj*r_thetai_r +qi*r_thetaj_r)
+                   - Cr*(rij[d]*(qj*tr_thetai + qi*tr_thetaj) + qj*sym_thetai_r[d] + qi*sym_thetaj_r[d]))/3.0;
+    }
     
     //dipole
     energy += (Cr*((mui_r*tr_thetaj - muj_r*tr_thetai)
@@ -349,6 +353,11 @@ void ewald_direct_sum(double &energy,
   end_t = clock();
   cpu_t = ((double)end_t - start_t)/CLOCKS_PER_SEC;
   fprintf(fout, "\tExecution Time: %12.5f \n", cpu_t);
+
+  free_2d_double(shell_force);
+  free_2d_double(shell_torque);
+  free_2d_double(shell_field);
+  free_3d_double(shell_field_grad);
 }
 
 void ewald_direct_sum_naive(double &energy, 

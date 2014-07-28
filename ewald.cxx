@@ -314,8 +314,8 @@ ewald::ewald(parallelepiped *_cell,
   {//particle parameters
   nump = num_particles;
     group  = alloc_1d_int(nump);
-    for(int i = 1; i <= nump; i++){
-      group[i] = -i;
+    for(int i = 0; i < nump; i++){
+      group[i] = -(i+1);
     }
   }
   
@@ -343,6 +343,7 @@ ewald::~ewald(){
 }
 
 void ewald::add_group(const int &gid, const int &num_elem, const int* pid){
+  assert(gid >= 0);
   for(int i = 0; i < num_elem; i++){
     group[pid[i]] = gid;
   }
@@ -1023,6 +1024,9 @@ void ewald::compute(double* E_ewald,
   this->compute_k(e_k, force, torque, efield, efield_grad, r, q, mu, theta);
   this->compute_self(e_self, force, torque, efield, efield_grad, r, q, mu, theta);
   this->compute_surface(e_surface, force, torque, efield, efield_grad, r, q, mu, theta);
+  fprintf(stderr, "%.4E %.4E %.4E\n", e_r, e_r+e_k, e_r+e_self);
+  fprintf(stderr, "%.4E %.4E\n", e_k, e_k+e_self);
+  fprintf(stderr, "%.4E\n", e_self);
   end_t = clock();
 
   cpu_t = ((double)end_t - start_t)/CLOCKS_PER_SEC;
