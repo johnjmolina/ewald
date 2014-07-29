@@ -529,7 +529,7 @@ void ewald::compute_r(double &energy,
     double rij[DIM];
     double erfc_ewald;
     double drij, drij2;
-    double Br, Cr, Dr, Er;
+    double Br, Cr, Dr, Er, Fr;
     double mui_r, muj_r, mui_muj;
     double dmy_0, dmy_1, dmy_2, dmy_3;
     
@@ -585,6 +585,9 @@ void ewald::compute_r(double &energy,
 
           dmy_0 *= 2.0*eta2;
           Er = (7.0 * Dr + dmy_0) * drij2;
+
+          dmy_0 *= 2.0*eta2;
+          Fr = (9.0 * Er + dmy_0) * drij2;
           
           if(CHARGE){
             dmy_energy += erfc_ewald*drij*qi*qj;
@@ -688,12 +691,9 @@ void ewald::compute_r(double &energy,
             //charge-quad
             dmy_energy += (-Br*(qi*tr_thetaj + qj*tr_thetai) + Cr*(qi*r_thetaj_r + qj*r_thetai_r) ) / 3.0;
             for(int d = 0; d < DIM; d++){
-              dmy_force[d] += (Dr*rij[d]*(qj*r_thetai_r + qi*r_thetaj_r)
-                               - Cr*(rij[d]*(qj*tr_thetai + qi*tr_thetaj) + qj*sym_thetai_r[d] + qi*sym_thetaj_r[d]))/3.0;
+              dmy_force[d] += (Dr*rij[d]*(qi*r_thetaj_r + qj*r_thetai_r)
+                               - Cr*(rij[d]*(qi*tr_thetaj + qj*tr_thetai) + (qi*sym_thetaj_r[d] + qj*sym_thetai_r[d])) )/3.0;
             }
-
-            //dipole-quad
-
 
             //quad-quad
             dmy_energy += (Cr*(tr_thetai*tr_thetaj + tr_thetai_thetaj + tr_thetai_ttthetaj)
@@ -703,6 +703,22 @@ void ewald::compute_r(double &energy,
                                   + sym_thetai_r[2]*sym_thetaj_r[2]))
                            +Er*r_thetai_r*r_thetaj_r)/9.0;
 	    for(int d = 0; d < DIM; d++){
+              dmy_force[d] += (+Dr*(rij[d]*(tr_thetai*tr_thetaj + tr_thetai_thetaj + tr_thetai_ttthetaj)
+                                    + (tr_thetai*sym_thetaj_r[d] + tr_thetaj*sym_thetai_r[d])
+                                    + ((thetai[d*DIM] + thetai[d])*sym_thetaj_r[0]
+                                       +(thetai[d*DIM+1] + thetai[DIM+d])*sym_thetaj_r[1]
+                                       +(thetai[d*DIM+2] + thetai[2*DIM+d])*sym_thetaj_r[2])
+                                    + ((thetaj[d*DIM] + thetaj[d])*sym_thetai_r[0]
+                                       +(thetaj[d*DIM+1] + thetaj[DIM+d])*sym_thetai_r[1]
+                                       +(thetaj[d*DIM+2] + thetaj[2*DIM+d])*sym_thetai_r[2])
+                                    )
+                               -Er*(rij[d]*(tr_thetai*r_thetaj_r + tr_thetaj*r_thetai_r
+                                            +(sym_thetai_r[0]*sym_thetaj_r[0] + sym_thetai_r[1]*sym_thetaj_r[1] + sym_thetai_r[2]*sym_thetaj_r[2]))
+                                    + sym_thetai_r[d]*r_thetaj_r
+                                    + sym_thetaj_r[d]*r_thetai_r
+                                    )
+                               +Fr*rij[d]*r_thetai_r*r_thetaj_r
+                               )/9.0;
 	      dmy_efieldi[d] += (Dr*rij[d]*r_thetaj_r - Cr*(rij[d]*tr_thetaj + sym_thetaj_r[d]))/3.0;
 	      dmy_efieldj[d] -= (Dr*rij[d]*r_thetai_r - Cr*(rij[d]*tr_thetai + sym_thetai_r[d]))/3.0;
 	    }

@@ -109,6 +109,8 @@ void free(){
   free_2d_double(torque_gold);
   free_2d_double(efield_gold);
   free_3d_double(efield_grad_gold);
+
+  delete cell;
 }
 void check_convergence(const double ener_gold, const double &ener, double rms[NERROR]){
   double dmy_f[DIM];

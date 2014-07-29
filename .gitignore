@@ -9,3 +9,4 @@ k_vec.dat
 *.orig
 reference
 cp2k
+XEwald

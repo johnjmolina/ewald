@@ -28,6 +28,7 @@ inline void pair_interaction(const double rij[DIM],
   double Cr = 3.0*Br*dr2i;
   double Dr = 5.0*Cr*dr2i;
   double Er = 7.0*Dr*dr2i;
+  double Fr = 9.0*Er*dr2i;
 
   double mui_r = v_inner_prod(mui, rij);
   double muj_r = v_inner_prod(muj, rij);
@@ -94,11 +95,12 @@ inline void pair_interaction(const double rij[DIM],
   }
 
   { //quadrupole interactions
+
     //charge
     energy += (-Br*(qi*tr_thetaj + qj*tr_thetai) + Cr*(qi*r_thetaj_r + qj*r_thetai_r) ) / 3.0;
     for(int d = 0; d < DIM; d++){
-      force[d] += (Dr*rij[d]*(qj*r_thetai_r +qi*r_thetaj_r)
-                   - Cr*(rij[d]*(qj*tr_thetai + qi*tr_thetaj) + qj*sym_thetai_r[d] + qi*sym_thetaj_r[d]))/3.0;
+      force[d] += (Dr*rij[d]*(qi*r_thetaj_r + qj*r_thetai_r)
+                   - Cr*(rij[d]*(qi*tr_thetaj + qj*tr_thetai) + (qi*sym_thetaj_r[d] + qj*sym_thetai_r[d]) ) )/3.0;
     }
     
     //dipole
@@ -113,8 +115,23 @@ inline void pair_interaction(const double rij[DIM],
                     +(sym_thetai_r[0]*sym_thetaj_r[0] + sym_thetai_r[1]*sym_thetaj_r[1] + sym_thetai_r[2]*sym_thetaj_r[2]))
                +Er*r_thetai_r*r_thetaj_r
                )/9.0;
-
     for(int d = 0; d < DIM; d++){
+      force[d] += (Dr*(rij[d]*(tr_thetai*tr_thetaj + tr_thetai_thetaj + tr_thetai_ttthetaj)
+                        + (tr_thetai*sym_thetaj_r[d] + tr_thetaj*sym_thetai_r[d])
+                        + ((thetai[d*DIM] + thetai[d])*sym_thetaj_r[0] 
+                           + (thetai[d*DIM+1] + thetai[DIM+d])*sym_thetaj_r[1] 
+                           + (thetai[d*DIM+2] + thetai[2*DIM+d])*sym_thetaj_r[2])
+                        + ((thetaj[d*DIM] + thetaj[d])*sym_thetai_r[0]
+                           + (thetaj[d*DIM+1] + thetaj[DIM+d])*sym_thetai_r[1]
+                           + (thetaj[d*DIM+2] + thetaj[2*DIM+d])*sym_thetai_r[2]
+                           )
+                        )
+                   -Er*(rij[d]*(tr_thetai*r_thetaj_r + tr_thetaj*r_thetai_r
+                                +(sym_thetai_r[0]*sym_thetaj_r[0] + sym_thetai_r[1]*sym_thetaj_r[1] + sym_thetai_r[2]*sym_thetaj_r[2]))
+                        + sym_thetai_r[d]*r_thetaj_r
+                        + sym_thetaj_r[d]*r_thetai_r)
+                   +Fr*rij[d]*r_thetai_r*r_thetaj_r
+                   )/9.0;
       field[d] += (Dr*rij[d]*r_thetaj_r - Cr*(rij[d]*tr_thetaj + sym_thetaj_r[d]))/3.0;
     }
   }
