@@ -39,8 +39,8 @@ int main(int argc, char *argv[]){
   init(num);
   set_cubic_box(float(ncells));
   fccLattice(ncells);
-  ndirect = 6;
-  compute_all(true, true, false, name);
+  ndirect = 12;
+  compute_all(true, true, true, name);
   free();
   delete ewald_sum;
   return 0;

@@ -27,7 +27,7 @@ int main(int argc, char *argv[]){
       mu[i][d] = 0.0;
     }
   }
-  ndirect = 6;
+  ndirect = 16;
   compute_all(true, true, false, name);
   free();
   delete ewald_sum;
