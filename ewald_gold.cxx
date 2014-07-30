@@ -107,7 +107,24 @@ inline void pair_interaction(const double rij[DIM],
     energy += (Cr*((mui_r*tr_thetaj - muj_r*tr_thetai)
                    +(mui[0]*sym_thetaj_r[0] + mui[1]*sym_thetaj_r[1] + mui[2]*sym_thetaj_r[2])
                    -(muj[0]*sym_thetai_r[0] + muj[1]*sym_thetai_r[1] + muj[2]*sym_thetai_r[2]))
-                   -Dr*(mui_r*r_thetaj_r - muj_r*r_thetai_r))/3.0;
+               -Dr*(mui_r*r_thetaj_r - muj_r*r_thetai_r))/3.0;
+    for(int d = 0; d < DIM; d++){
+      force[d] += (-Cr*((mui[d]*tr_thetaj - muj[d]*tr_thetai)
+                        + ((thetaj[d*DIM] + thetaj[d])*mui[0]
+                           + (thetaj[d*DIM+1] + thetaj[DIM+d])*mui[1]
+                           + (thetaj[d*DIM+2] + thetaj[2*DIM+d])*mui[2])
+                        - ((thetai[d*DIM] + thetai[d])*muj[0]
+                           + (thetai[d*DIM+1] + thetai[DIM+d])*muj[1]
+                           + (thetai[d*DIM+2] + thetai[2*DIM+d])*muj[2])
+                        )
+                   +Dr*(rij[d]*((mui_r*tr_thetaj - muj_r*tr_thetai)
+                               +(mui[0]*sym_thetaj_r[0] + mui[1]*sym_thetaj_r[1] + mui[2]*sym_thetaj_r[2])
+                               -(muj[0]*sym_thetai_r[0] + muj[1]*sym_thetai_r[1] + muj[2]*sym_thetai_r[2]))
+                       + (mui_r*sym_thetaj_r[d] - muj_r*sym_thetai_r[d])
+                       + (r_thetaj_r*mui[d] - r_thetai_r*muj[d])
+                       )
+                   -Er*(rij[d]*(mui_r*r_thetaj_r - muj_r*r_thetai_r)) )/3.0;
+    }
 
     //quadrupole
     energy += (Cr*(tr_thetai*tr_thetaj + tr_thetai_thetaj + tr_thetai_ttthetaj)
@@ -132,7 +149,22 @@ inline void pair_interaction(const double rij[DIM],
                         + sym_thetaj_r[d]*r_thetai_r)
                    +Fr*rij[d]*r_thetai_r*r_thetaj_r
                    )/9.0;
+
       field[d] += (Dr*rij[d]*r_thetaj_r - Cr*(rij[d]*tr_thetaj + sym_thetaj_r[d]))/3.0;
+      
+      field_grad[d][d] += (-Cr*tr_thetaj + Dr*r_thetaj_r)/3.0;
+      field_grad[d][0] += (-Cr*(thetaj[d*DIM] + thetaj[d])
+                           +Dr*(rij[d]*rij[0]*tr_thetaj + rij[d]*sym_thetaj_r[0] + sym_thetaj_r[d]*rij[0])
+                           -Er*(rij[d]*rij[0]*r_thetaj_r)
+                           )/3.0;
+      field_grad[d][1] += (-Cr*(thetaj[d*DIM+1] + thetaj[DIM+d])
+                           +Dr*(rij[d]*rij[1]*tr_thetaj + rij[d]*sym_thetaj_r[1] + sym_thetaj_r[d]*rij[1])
+                           -Er*(rij[d]*rij[1]*r_thetaj_r)
+                           )/3.0;
+      field_grad[d][2] += (-Cr*(thetaj[d*DIM+2] + thetaj[2*DIM+d])
+                           +Dr*(rij[d]*rij[2]*tr_thetaj + rij[d]*sym_thetaj_r[2] + sym_thetaj_r[d]*rij[2])
+                           -Er*(rij[d]*rij[2]*r_thetaj_r)
+                           )/3.0;
     }
   }
 
@@ -140,6 +172,17 @@ inline void pair_interaction(const double rij[DIM],
     torque[0] = mui[1]*field[2] - mui[2]*field[1];
     torque[1] = mui[2]*field[0] - mui[0]*field[2];
     torque[2] = mui[0]*field[1] - mui[1]*field[0];
+  }
+  { //torque on quadrupoles (Jackson, p. 171)
+    // \tau_i = 1/3 \epsilon_{ijk} Q_{jl} E_{kl}
+    torque[0] += ((thetai[DIM]*field_grad[0][2] + thetai[DIM+1]*field_grad[1][2] + thetai[DIM+2]*field_grad[2][2])
+                  -(thetai[2*DIM]*field_grad[0][1] + thetai[2*DIM+1]*field_grad[1][1] + thetai[2*DIM+2]*field_grad[2][1]))/3.0;
+    
+    torque[1] += ((thetai[2*DIM]*field_grad[0][0] + thetai[2*DIM+1]*field_grad[1][0] + thetai[2*DIM+2]*field_grad[2][0])
+                  -(thetai[0]*field_grad[0][2] + thetai[1]*field_grad[1][2] + thetai[2]*field_grad[2][2]))/3.0;
+    
+    torque[2] += ((thetai[0]*field_grad[0][1] + thetai[1]*field_grad[1][1] + thetai[2]*field_grad[2][1]) 
+                  -(thetai[DIM]*field_grad[0][0] + thetai[DIM+1]*field_grad[1][0] + thetai[DIM+2]*field_grad[2][0]))/3.0;
   }
 }
 void ewald_minimum_image(double & energy,
@@ -327,13 +370,18 @@ void ewald_direct_sum(double &energy,
       }
       if(i == 0){
 	fprintf(fout, 
-		"%3d %10d %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f\n",
+		"%3d %10d %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f\n",
 		nshell, (int) shell.size(),
 		shell_energy, energy,
 		force[0][0], force[0][1], force[0][2],
 		torque[0][0], torque[0][1], torque[0][2],
 		field[0][0], field[0][1], field[0][2],
-		field_grad[0][0][0], field_grad[0][1][1], field_grad[0][2][2]);
+		field_grad[0][0][0], field_grad[0][1][1], 
+                field_grad[0][0][0] + field_grad[0][1][1] + field_grad[0][2][2],
+                SQ(field_grad[0][0][1] - field_grad[0][1][0]) +
+                SQ(field_grad[0][0][2] - field_grad[0][2][0]) +
+                SQ(field_grad[0][1][2] - field_grad[0][2][1])
+                );
       }
       shell_energy = 0.0;
       for(int d = 0; d < DIM; d++){

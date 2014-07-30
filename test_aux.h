@@ -55,6 +55,14 @@ void random_dipole(const double &val, double mui[DIM]){
   mui[1] = val*sin(theta)*sin(phi);
   mui[2] = val*cos(theta);
 }
+double random_quadrupole(const double &val, double theta[DIM*DIM]){
+  for(int i = 0; i < DIM; i++){
+    for(int j = i; j < DIM; j++){
+      theta[i*DIM + j] = theta[j*DIM + i] = RAx(val);
+    }
+  }
+  return (theta[0] + theta[4] + theta[8]);
+}
 void init(const int &num){
   alpha  = 8.0;
   delta  = 1.0e-16;
@@ -156,20 +164,28 @@ void show_results(const int &n, const double &energy,
 		  double const* const* efield,
 		  double const* const* const* efield_grad,
                   FILE* fout){
-  fprintf(fout, "%14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f\n",
+  fprintf(fout, "%14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f\n",
           energy, 
 	  force[0][0], force[0][1], force[0][2],
 	  torque[0][0], torque[0][1], torque[0][2],
 	  efield[0][0], efield[0][1], efield[0][2],
-	  efield_grad[0][0][0], efield_grad[0][1][1], efield_grad[0][2][2]
+	  efield_grad[0][0][0], efield_grad[0][1][1], 
+          efield_grad[0][0][0] + efield_grad[0][1][1] + efield_grad[0][2][2], // Qtrace
+          SQ(efield_grad[0][0][1] - efield_grad[0][1][0]) +                   // Q symmetry
+          SQ(efield_grad[0][0][2] - efield_grad[0][2][0]) + 
+          SQ(efield_grad[0][1][2] - efield_grad[0][2][1])
           );
   if(n > 1){
-  fprintf(fout, "%14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f\n",
+  fprintf(fout, "%14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f\n",
           energy, 
 	  force[1][0], force[1][1], force[1][2],
 	  torque[1][0], torque[1][1], torque[1][2],
 	  efield[1][0], efield[1][1], efield[1][2],
-	  efield_grad[1][0][0], efield_grad[1][1][1], efield_grad[1][2][2]
+	  efield_grad[1][0][0], 
+          efield_grad[1][1][1], efield_grad[1][0][0] + efield_grad[1][1][1] + efield_grad[1][2][2],
+          SQ(efield_grad[1][0][1] - efield_grad[1][1][0]) +
+          SQ(efield_grad[1][0][2] - efield_grad[1][2][0]) +
+          SQ(efield_grad[1][1][2] - efield_grad[1][2][1])
           );
   }
 }

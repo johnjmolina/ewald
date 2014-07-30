@@ -375,7 +375,6 @@ void ewald::reset_boundary(const double &ewald_epsilon){
 
 void ewald::compute_self(double &energy, 
 			 double* force, 
-			 double* torque, 
 			 double* efield,
 			 double* efield_grad,
                          double const* r, 
@@ -393,8 +392,7 @@ void ewald::compute_self(double &energy,
 #pragma omp parallel for schedule(dynamic, 1) private(dmy_grad) \
   reduction(+:dmy_energy)
     for(int i = 0; i < nump; i++){
-      const int ii = i * DIM;
-      const int iii= ii * DIM;
+      const int iii= i * DIM * DIM;
       dmy_energy += q[i]*q[i];
 
       dmy_grad = (-eta3_factor*q[i]);
@@ -429,18 +427,21 @@ void ewald::compute_self(double &energy,
       const double* thetai = &theta[iii];
 
       dmy_energy_q += qi*(thetai[0] + thetai[4] + thetai[8]);
-      for(int j = 0; j < DIM; j++){
-        const int jj = j * DIM;
-	dmy_energy_theta += (thetai[jj]*thetai[jj] + thetai[jj+1]*thetai[jj+1] + thetai[jj+2]*thetai[jj+2]);
+      for(int d = 0; d < DIM; d++){
+        const int dd = d * DIM;
+	dmy_energy_theta += (thetai[dd]*thetai[dd] + thetai[dd+1]*thetai[dd+1] + thetai[dd+2]*thetai[dd+2]);
+        efield_grad[iii + dd]     += 2.0*eta5_factor*thetai[dd];
+        efield_grad[iii + dd + 1] += 2.0*eta5_factor*thetai[dd+1];
+        efield_grad[iii + dd + 2] += 2.0*eta5_factor*thetai[dd+2];
       }
+      
     }
-    energy += (-eta3_factor*dmy_energy_q - eta5_factor*dmy_energy_theta)/3.0;
+    energy += (eta3_factor*dmy_energy_q - eta5_factor*dmy_energy_theta)/3.0;
   }
 }
 
 void ewald::compute_surface(double &energy, 
 			    double* force, 
-			    double* torque, 
 			    double* efield,
 			    double* efield_grad,
                             double const* r, 
@@ -498,19 +499,12 @@ void ewald::compute_surface(double &energy,
         force[ii+1] += dmy_factor*qi*sum_qr_mu1;
         force[ii+2] += dmy_factor*qi*sum_qr_mu2;
       }
-      
-      if(DIPOLE){
-        torque[ii]   += dmy_factor*(mui[1]*sum_qr_mu2 - mui[2]*sum_qr_mu1);
-        torque[ii+1] += dmy_factor*(mui[2]*sum_qr_mu0 - mui[0]*sum_qr_mu2);
-        torque[ii+2] += dmy_factor*(mui[0]*sum_qr_mu1 - mui[1]*sum_qr_mu0);
-      }
     }
   }
 }
 
 void ewald::compute_r(double &energy, 
 		      double* force, 
-		      double* torque, 
 		      double* efield,
 		      double* efield_grad,
                       double const* r, 
@@ -670,58 +664,105 @@ void ewald::compute_r(double &energy,
             double r_thetai[DIM], r_thetaj[DIM];
             double thetai_r[DIM], thetaj_r[DIM];
             double sym_thetai_r[DIM], sym_thetaj_r[DIM];
+            double thetai_sym[DIM*DIM], thetaj_sym[DIM*DIM];
 
             v_M_prod(r_thetai, rij, thetai);
             v_M_prod(r_thetaj, rij, thetaj);
             M_v_prod(thetai_r, thetai, rij);
             M_v_prod(thetaj_r, thetaj, rij);
-            for(int d = 0; d < DIM; d++){
-              sym_thetai_r[d] = r_thetai[d] + thetai_r[d];
-              sym_thetaj_r[d] = r_thetaj[d] + thetaj_r[d];
-            }
-            double tr_thetai_thetaj = 0;
-            double tr_thetai_ttthetaj = 0;
+            double r_thetai_r = rij[0]*thetai_r[0] + rij[1]*thetai_r[1] + rij[2]*thetai_r[2];
+            double r_thetaj_r = rij[0]*thetaj_r[0] + rij[1]*thetaj_r[1] + rij[2]*thetaj_r[2];
+
+            double tr_thetai_thetaj = 0.0;
+            double tr_thetai_ttthetaj = 0.0;
             for(int d = 0; d < DIM; d++){
               tr_thetai_thetaj += (thetai[d*DIM]*thetaj[d] + thetai[d*DIM+1]*thetaj[DIM+d] + thetai[d*DIM+2]*thetaj[2*DIM+d]);
               tr_thetai_ttthetaj += (thetai[d*DIM]*thetaj[d*DIM] + thetai[d*DIM+1]*thetaj[d*DIM+1] + thetai[d*DIM+2]*thetaj[d*DIM+2]);
-            }
-            double r_thetai_r = rij[0]*thetai_r[0] + rij[1]*thetai_r[1] + rij[2]*thetai_r[2];
-            double r_thetaj_r = rij[0]*thetaj_r[0] + rij[1]*thetaj_r[1] + rij[2]*thetaj_r[2];
-            
-            //charge-quad
-            dmy_energy += (-Br*(qi*tr_thetaj + qj*tr_thetai) + Cr*(qi*r_thetaj_r + qj*r_thetai_r) ) / 3.0;
-            for(int d = 0; d < DIM; d++){
-              dmy_force[d] += (Dr*rij[d]*(qi*r_thetaj_r + qj*r_thetai_r)
-                               - Cr*(rij[d]*(qi*tr_thetaj + qj*tr_thetai) + (qi*sym_thetaj_r[d] + qj*sym_thetai_r[d])) )/3.0;
+
+              sym_thetai_r[d] = r_thetai[d] + thetai_r[d];
+              sym_thetaj_r[d] = r_thetaj[d] + thetaj_r[d];
+              for(int e = d; e < DIM; e++){
+                thetai_sym[d*DIM+e] = thetai_sym[e*DIM+d] = thetai[d*DIM+e] + thetai[e*DIM+d];
+                thetaj_sym[d*DIM+e] = thetaj_sym[e*DIM+d] = thetaj[d*DIM+e] + thetaj[e*DIM+d];
+              }
             }
 
+            //charge-quad
+            if(CHARGE){
+              dmy_0 = qi*tr_thetaj + qj*tr_thetai;
+              dmy_1 = qi*r_thetaj_r + qj*r_thetai_r;
+
+              dmy_energy += (-Br*dmy_0 + Cr*dmy_1) / 3.0;
+              for(int d = 0; d < DIM; d++){
+                dmy_force[d] += (Dr*rij[d]*dmy_1 - Cr*(rij[d]*dmy_0 + (qi*sym_thetaj_r[d] + qj*sym_thetai_r[d])) )/3.0;
+              }
+            }
+
+            //dipole-quad
+            if(DIPOLE){
+              dmy_0 = mui_r*tr_thetaj - muj_r*tr_thetai;
+              dmy_1 = mui[0]*sym_thetaj_r[0] + mui[1]*sym_thetaj_r[1] + mui[2]*sym_thetaj_r[2];
+              dmy_2 = muj[0]*sym_thetai_r[0] + muj[1]*sym_thetai_r[1] + muj[2]*sym_thetai_r[2];
+              dmy_3 = mui_r*r_thetaj_r - muj_r*r_thetai_r;
+
+              dmy_energy += (Cr*(dmy_0 + dmy_1 - dmy_2) - Dr*dmy_3)/3.0;
+              for(int d = 0; d < DIM; d++){
+                dmy_force[d] += (-Cr*((mui[d]*tr_thetaj - muj[d]*tr_thetai)
+                                      + (thetaj_sym[d*DIM]*mui[0] + thetaj_sym[d*DIM+1]*mui[1] + thetaj_sym[d*DIM+2]*mui[2])
+                                      - (thetai_sym[d*DIM]*muj[0] + thetai_sym[d*DIM+1]*muj[1] + thetai_sym[d*DIM+2]*muj[2]))
+                                 +Dr*(rij[d]*(dmy_0 + dmy_1 - dmy_2)
+                                      + (mui_r*sym_thetaj_r[d] - muj_r*sym_thetai_r[d])
+                                      + (r_thetaj_r*mui[d] - r_thetai_r*muj[d]))
+                                 -Er*(rij[d]*dmy_3) )/3.0;
+              }
+            }
+            
             //quad-quad
-            dmy_energy += (Cr*(tr_thetai*tr_thetaj + tr_thetai_thetaj + tr_thetai_ttthetaj)
-                           -Dr*((r_thetai_r*tr_thetaj + r_thetaj_r*tr_thetai)
-                                +(sym_thetai_r[0]*sym_thetaj_r[0] 
-                                  + sym_thetai_r[1]*sym_thetaj_r[1] 
-                                  + sym_thetai_r[2]*sym_thetaj_r[2]))
-                           +Er*r_thetai_r*r_thetaj_r)/9.0;
+            dmy_0 = tr_thetai*tr_thetaj + tr_thetai_thetaj + tr_thetai_ttthetaj;
+            dmy_1 = r_thetai_r*tr_thetaj + r_thetaj_r*tr_thetai;
+            dmy_2 = sym_thetai_r[0]*sym_thetaj_r[0] + sym_thetai_r[1]*sym_thetaj_r[1] + sym_thetai_r[2]*sym_thetaj_r[2];
+            dmy_energy += (Cr*dmy_0 -Dr*(dmy_1 + dmy_2) + Er*r_thetai_r*r_thetaj_r)/9.0;
 	    for(int d = 0; d < DIM; d++){
-              dmy_force[d] += (+Dr*(rij[d]*(tr_thetai*tr_thetaj + tr_thetai_thetaj + tr_thetai_ttthetaj)
+              dmy_force[d] += (+Dr*(rij[d]*dmy_0
                                     + (tr_thetai*sym_thetaj_r[d] + tr_thetaj*sym_thetai_r[d])
-                                    + ((thetai[d*DIM] + thetai[d])*sym_thetaj_r[0]
-                                       +(thetai[d*DIM+1] + thetai[DIM+d])*sym_thetaj_r[1]
-                                       +(thetai[d*DIM+2] + thetai[2*DIM+d])*sym_thetaj_r[2])
-                                    + ((thetaj[d*DIM] + thetaj[d])*sym_thetai_r[0]
-                                       +(thetaj[d*DIM+1] + thetaj[DIM+d])*sym_thetai_r[1]
-                                       +(thetaj[d*DIM+2] + thetaj[2*DIM+d])*sym_thetai_r[2])
-                                    )
-                               -Er*(rij[d]*(tr_thetai*r_thetaj_r + tr_thetaj*r_thetai_r
-                                            +(sym_thetai_r[0]*sym_thetaj_r[0] + sym_thetai_r[1]*sym_thetaj_r[1] + sym_thetai_r[2]*sym_thetaj_r[2]))
-                                    + sym_thetai_r[d]*r_thetaj_r
-                                    + sym_thetaj_r[d]*r_thetai_r
-                                    )
-                               +Fr*rij[d]*r_thetai_r*r_thetaj_r
-                               )/9.0;
+                                    + (thetai_sym[d*DIM]*sym_thetaj_r[0] + thetai_sym[d*DIM+1]*sym_thetaj_r[1] + thetai_sym[d*DIM+2]*sym_thetaj_r[2])
+                                    + (thetaj_sym[d*DIM]*sym_thetai_r[0] + thetaj_sym[d*DIM+1]*sym_thetai_r[1] + thetaj_sym[d*DIM+2]*sym_thetai_r[2]))
+                               -Er*(rij[d]*(dmy_1  + dmy_2)  + sym_thetai_r[d]*r_thetaj_r + sym_thetaj_r[d]*r_thetai_r)
+                               +Fr*rij[d]*r_thetai_r*r_thetaj_r ) /9.0;
+              
 	      dmy_efieldi[d] += (Dr*rij[d]*r_thetaj_r - Cr*(rij[d]*tr_thetaj + sym_thetaj_r[d]))/3.0;
 	      dmy_efieldj[d] -= (Dr*rij[d]*r_thetai_r - Cr*(rij[d]*tr_thetai + sym_thetai_r[d]))/3.0;
+              
+              
+              dmy_efieldi_dx[d] += (-Cr*(thetaj_sym[d*DIM])
+                                    +Dr*(rij[0]*rij[d]*tr_thetaj + rij[0]*sym_thetaj_r[d] + rij[d]*sym_thetaj_r[0])
+                                    -Er*(rij[0]*rij[d]*r_thetaj_r))/3.0;
+              dmy_efieldi_dy[d] += (-Cr*(thetaj_sym[d*DIM+1])
+                                    +Dr*(rij[1]*rij[d]*tr_thetaj + rij[1]*sym_thetaj_r[d] + rij[d]*sym_thetaj_r[1])
+                                    -Er*(rij[1]*rij[d]*r_thetaj_r))/3.0;
+              dmy_efieldi_dz[d] += (-Cr*(thetaj_sym[d*DIM+2])
+                                    +Dr*(rij[2]*rij[d]*tr_thetaj + rij[2]*sym_thetaj_r[d] + rij[d]*sym_thetaj_r[2])
+                                    -Er*(rij[2]*rij[d]*r_thetaj_r))/3.0;
+
+              dmy_efieldj_dx[d] += (-Cr*(thetai_sym[d*DIM])
+                                    +Dr*(rij[0]*rij[d]*tr_thetai + rij[0]*sym_thetai_r[d] + rij[d]*sym_thetai_r[0])
+                                    -Er*(rij[0]*rij[d]*r_thetai_r))/3.0;
+              dmy_efieldj_dy[d] += (-Cr*(thetai_sym[d*DIM+1])
+                                    +Dr*(rij[1]*rij[d]*tr_thetai + rij[1]*sym_thetai_r[d] + rij[d]*sym_thetai_r[1])
+                                    -Er*(rij[1]*rij[d]*r_thetai_r))/3.0;
+              dmy_efieldj_dz[d] += (-Cr*(thetai_sym[d*DIM+2])
+                                    +Dr*(rij[2]*rij[d]*tr_thetai + rij[2]*sym_thetai_r[d] + rij[d]*sym_thetai_r[2])
+                                    -Er*(rij[2]*rij[d]*r_thetai_r))/3.0;
 	    }
+            dmy_0 = (-Cr*tr_thetaj + Dr*r_thetaj_r)/3.0;
+            dmy_efieldi_dx[0] += dmy_0;
+            dmy_efieldi_dy[1] += dmy_0;
+            dmy_efieldi_dz[2] += dmy_0;
+            
+            dmy_0 = (-Cr*tr_thetai + Dr*r_thetai_r)/3.0;
+            dmy_efieldj_dx[0] += dmy_0;
+            dmy_efieldj_dy[1] += dmy_0;
+            dmy_efieldj_dz[2] += dmy_0;
           }
           
           {
@@ -782,29 +823,43 @@ void ewald::compute_r(double &energy,
             efield_grad[jjj+6] += dmy_efieldj_dz[0];
             efield_grad[jjj+7] += dmy_efieldj_dz[1];
             efield_grad[jjj+8] += dmy_efieldj_dz[2];
-          }
-          
-          //torques
-          if(DIPOLE){
-#pragma omp atomic
-            torque[ii]   += (mui[1]*dmy_efieldi[2] - mui[2]*dmy_efieldi[1]);
-#pragma omp atomic
-            torque[ii+1] += (mui[2]*dmy_efieldi[0] - mui[0]*dmy_efieldi[2]);
-#pragma omp atomic
-            torque[ii+2] += (mui[0]*dmy_efieldi[1] - mui[1]*dmy_efieldi[0]);
-            
-            torque[jj]   += (muj[1]*dmy_efieldj[2] - muj[2]*dmy_efieldj[1]);
-            torque[jj+1] += (muj[2]*dmy_efieldj[0] - muj[0]*dmy_efieldj[2]);
-            torque[jj+2] += (muj[0]*dmy_efieldj[1] - muj[1]*dmy_efieldj[0]);
-          }
-          if(QUADRUPOLE){
-            //TODO: add torque due to gradient of electric field
-          }
+          }          
         }//rij < r2max
       }//jid != iid
     }//i
   }//j
   energy += dmy_energy;
+}
+
+void ewald::compute_torque(double* torque, const double* efield, const double* efield_grad, const double* mu, const double* theta) const{
+  if(DIPOLE){
+    for(int i = 0; i < nump; i++){
+      const int ii = i * DIM;
+      const double* mui = &mu[ii];
+      const double* efieldi = &efield[ii];
+      
+      torque[ii]   += (mui[1]*efieldi[2] - mui[2]*efieldi[1]);
+      torque[ii+1] += (mui[2]*efieldi[0] - mui[0]*efieldi[2]);
+      torque[ii+2] += (mui[0]*efieldi[1] - mui[1]*efieldi[0]);
+    }
+  }
+  if(QUADRUPOLE){
+    for(int i = 0; i < nump; i++){
+      const int ii = i * DIM;
+      const int iii = ii * DIM;
+      const double* thetai = &theta[iii];
+      const double* efieldi_grad = &efield_grad[iii];
+      
+      torque[ii]   += ((thetai[DIM]*efieldi_grad[2]   + thetai[DIM+1]*efieldi_grad[DIM+2]   + thetai[DIM+2]*efieldi_grad[2*DIM+2]  ) - 
+                       (thetai[2*DIM]*efieldi_grad[1] + thetai[2*DIM+1]*efieldi_grad[DIM+1] + thetai[2*DIM+2]*efieldi_grad[2*DIM+1]) )/3.0;
+      
+      torque[ii+1] += ((thetai[2*DIM]*efieldi_grad[0] + thetai[2*DIM+1]*efieldi_grad[DIM]   + thetai[2*DIM+2]*efieldi_grad[2*DIM]) -
+                       (thetai[0]*efieldi_grad[2]     + thetai[1]*efieldi_grad[DIM+2]       + thetai[2]*efieldi_grad[2*DIM+2]    ) )/3.0;
+      
+      torque[ii+2] += ((thetai[0]*efieldi_grad[1]     + thetai[1]*efieldi_grad[DIM+1]       + thetai[2]*efieldi_grad[2*DIM+1]) -
+                       (thetai[DIM]*efieldi_grad[0]   + thetai[DIM+1]*efieldi_grad[DIM]     + thetai[DIM+2]*efieldi_grad[2*DIM]) )/3.0;
+    }
+  }
 }
 
 void ewald::precompute_trig_k(double const* r){
@@ -931,7 +986,6 @@ inline void ewald::compute_rho_k(double &rho_re, double &rho_im,
 }
 void ewald::compute_k(double &energy, 
 		      double* force, 
-		      double* torque, 
 		      double* efield, 
 		      double* efield_grad,
                       double const* r, 
@@ -1001,15 +1055,6 @@ void ewald::compute_k(double &energy,
       efield_grad[jjj+6] += dmy_efield_grad * k0;  //zx
       efield_grad[jjj+7] += dmy_efield_grad * k1;  //zy
       efield_grad[jjj+8] += dmy_efield_grad * k2;  //zz
-
-      if(DIPOLE){
-        torque[jj]   += dmy_efield * (muj[1] * k2 - muj[2] * k1);
-        torque[jj+1] += dmy_efield * (muj[2] * k0 - muj[0] * k2);
-        torque[jj+2] += dmy_efield * (muj[0] * k1 - muj[1] * k0);
-      }
-      if(QUADRUPOLE){
-        //TODO: compute efield_gradient + torque
-      }
     }
   }
   energy += (cell->PI4iVol)*dmy_energy;
@@ -1036,13 +1081,11 @@ void ewald::compute(double* E_ewald,
   double cpu_t;
   start_t = clock();
   this->reset(force, torque, efield, efield_grad);
-  this->compute_r(e_r, force, torque, efield, efield_grad, r, q, mu, theta);
-  this->compute_k(e_k, force, torque, efield, efield_grad, r, q, mu, theta);
-  this->compute_self(e_self, force, torque, efield, efield_grad, r, q, mu, theta);
-  this->compute_surface(e_surface, force, torque, efield, efield_grad, r, q, mu, theta);
-  fprintf(stderr, "%.4E %.4E %.4E\n", e_r, e_r+e_k, e_r+e_self);
-  fprintf(stderr, "%.4E %.4E\n", e_k, e_k+e_self);
-  fprintf(stderr, "%.4E\n", e_self);
+  this->compute_r(e_r, force, efield, efield_grad, r, q, mu, theta);
+  this->compute_k(e_k, force, efield, efield_grad, r, q, mu, theta);
+  this->compute_self(e_self, force, efield, efield_grad, r, q, mu, theta);
+  this->compute_surface(e_surface, force, efield, efield_grad, r, q, mu, theta);
+  this->compute_torque(torque, efield, efield_grad, mu, theta);
   end_t = clock();
 
   cpu_t = ((double)end_t - start_t)/CLOCKS_PER_SEC;

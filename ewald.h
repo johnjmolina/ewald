@@ -98,7 +98,6 @@ class ewald {
 
   void compute_r(double& energy, 
 		 double* force, 
-		 double* torque, 
 		 double* efield,
 		 double* efield_grad,
                  double const* r, 
@@ -108,7 +107,6 @@ class ewald {
 
   void compute_k(double& energy, 
 		 double* force, 
-		 double* torque, 
 		 double* efield,
 		 double* efield_grad,
                  double const* r, 
@@ -118,7 +116,6 @@ class ewald {
 
   void compute_surface(double &energy, 
 		       double* force, 
-		       double* torque, 
 		       double* efield, 
 		       double* efield_grad,
 		       double const* r,
@@ -128,13 +125,18 @@ class ewald {
 
   void compute_self(double &energy, 
 		    double* force, 
-		    double* torque, 
 		    double* efield, 
 		    double* efield_grad,
 		    double const* r,
 		    double const* q, 
 		    double const* mu, 
 		    double const* theta) const;
+
+  void compute_torque(double* torque,
+                      double const* efield,
+                      double const* efield_grad,
+                      double const* mu,
+                      double const* theta) const;
 
   ~ewald();
 
