@@ -312,12 +312,27 @@ void ewald_direct_sum(double &energy,
   for(int nshell = 0; nshell < (int)nlist.size(); nshell++){
     vector< vector<int> > &shell = nlist.at(nshell);
 
+    for(int i = 0; i < Nparticles; i++){
+      shell_energy = 0.0;
+      for(int d = 0; d < DIM; d++){
+	shell_force[i][d] = 0.0;
+	shell_torque[i][d] = 0.0;
+	shell_field[i][d] = 0.0;
+	
+        shell_field_grad[i][d][0] = 0.0;
+        shell_field_grad[i][d][1] = 0.0;
+        shell_field_grad[i][d][2] = 0.0;
+      }
+    }
+
     for(int ncell = 0; ncell < shell.size(); ncell++){
       vector<int> &cell = shell.at(ncell);
       icell[0] = cell.at(0);
       icell[1] = cell.at(1);
       icell[2] = cell.at(2);
-      
+
+#pragma omp parallel for schedule(dynamic, 1) private(rij, dmy_energy, dmy_force, dmy_torque, dmy_field, dmy_field_grad) \
+  reduction(+:shell_energy)
       for(int i = 0; i < Nparticles; i++){
         const double qi = q[i];
         const double* ri = r[i];
@@ -340,12 +355,17 @@ void ewald_direct_sum(double &energy,
 	    
 	    shell_energy += (dmy_energy/2.0);
 	    for(int d = 0; d < DIM; d++){
+#pragma omp atomic
 	      shell_force[i][d] += dmy_force[d];
+#pragma omp atomic
 	      shell_torque[i][d] += dmy_torque[d];
+#pragma omp atomic
 	      shell_field[i][d] += dmy_field[d];
-
+#pragma omp atomic
               shell_field_grad[i][d][0] += dmy_field_grad[d][0];
+#pragma omp atomic
               shell_field_grad[i][d][1] += dmy_field_grad[d][1];
+#pragma omp atomic
               shell_field_grad[i][d][2] += dmy_field_grad[d][2];
 	    }
 	    
@@ -382,16 +402,6 @@ void ewald_direct_sum(double &energy,
                 SQ(field_grad[0][0][2] - field_grad[0][2][0]) +
                 SQ(field_grad[0][1][2] - field_grad[0][2][1])
                 );
-      }
-      shell_energy = 0.0;
-      for(int d = 0; d < DIM; d++){
-	shell_force[i][d] = 0.0;
-	shell_torque[i][d] = 0.0;
-	shell_field[i][d] = 0.0;
-
-        shell_field_grad[i][d][0] = 0.0;
-        shell_field_grad[i][d][1] = 0.0;
-        shell_field_grad[i][d][2] = 0.0;
       }
     }//i
 

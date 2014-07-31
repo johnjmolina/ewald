@@ -1,10 +1,32 @@
-ARCH     = macosx
-CC	 = clang
-CXX      = clang++
-#LINKS    = -I/usr/local/include -L/usr/local/lib -lm -stdlib=libc++
-#CCOPT    = -O0 -g -stdlib=libc++ 
-LINKS    = -I/usr/local/include -L/usr/local/lib -lm -stdlib=libstdc++
-CCOPT    = -O0 -g -stdlib=libstdc++ 
+ifeq ($(ENV), CLANG)
+     CC       = clang
+     CXX      = clang++
+     COPT     = -O3 -stdlib=libc++
+     LINKS    = -I/usr/local/include -L/usr/local/lib -lm -stdlib=libc++
+endif
+ifeq ($(ENV), CLANG_STD)
+     CC       = clang
+     CXX      = clang++
+     COPT     = -O3 -stdlib=libstdc++
+     LINKS    = -I/usr/local/include -L/usr/local/lib -lm -stdlib=libstdc++
+endif
+ifeq ($(ENV), ICC)
+     CC	      = icc
+     CXX      = icpc
+     CCOPT    = -O3 -xSSSE3 -axAVX,SSE4.2,SSE4.1,SSSE3,SSE3,SSE2 -w0 -lstdc++
+     LINKS    = -lm -lstdc++
+endif
+ifeq ($(ENV), ICC_OMP)
+     MKL_DIR  = /home/opt/intel/composer_x2_2013/mkl
+     MKL_PATH = $(MKL_DIR)/lib/intel64
+     MKL_INCLUDE_PATH = $(MKL_DIR)/include
+     CC	      = icc
+     CXX      = icpc
+     CCOPT    = -O3 -xSSSE3 -axAVX,SSE4.2,SSE4.1,SSSE3,SSE3,SSE2 \
+	-ip -openmp -parallel -w0 -L$(MKL_PATH) -I$(MKL_INCLUDE_PATH)
+     LINKS    = -lstdc++ -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lm
+endif
+
 CFLAGS   = $(CCOPT)
 
 AUX_OBJS = alloc.o\
