@@ -353,7 +353,7 @@ void ewald::reset(double *force,
 		  double *torque, 
 		  double *efield,
 		  double *efield_grad){
-#pragma omp parallel for schedule(dynamic, 1)
+#pragma omp parallel for schedule(static)
   for(int i = 0; i < nump; i++){
     const int ii = i * DIM;
     const int iii= ii * DIM;
@@ -388,14 +388,12 @@ void ewald::compute_self(double &energy,
 
   if(CHARGE){
     double dmy_energy = 0.0;
-    double dmy_grad   = 0.0;
-#pragma omp parallel for schedule(dynamic, 1) private(dmy_grad) \
-  reduction(+:dmy_energy)
+#pragma omp parallel for schedule(static) reduction(+:dmy_energy)
     for(int i = 0; i < nump; i++){
       const int iii= i * DIM * DIM;
       dmy_energy += q[i]*q[i];
 
-      dmy_grad = (-eta3_factor*q[i]);
+      double dmy_grad = (-eta3_factor*q[i]);
       efield_grad[iii]   += dmy_grad;  //xx
       efield_grad[iii+4] += dmy_grad;  //yy
       efield_grad[iii+8] += dmy_grad;  //zz
@@ -405,7 +403,7 @@ void ewald::compute_self(double &energy,
 
   if(DIPOLE){
     double dmy_energy = 0.0;
-#pragma omp parallel for schedule(dynamic, 1) reduction(+:dmy_energy)
+#pragma omp parallel for schedule(static) reduction(+:dmy_energy)
     for(int i = 0; i < nump; i++){
       const int ii = i * DIM;
       const double* mui = &mu[ii];
@@ -420,7 +418,7 @@ void ewald::compute_self(double &energy,
   if(QUADRUPOLE){
     double dmy_energy_q = 0.0;
     double dmy_energy_theta = 0.0;
-#pragma omp parallel for schedule(dynamic, 1) reduction(+:dmy_energy_q,dmy_energy_theta)
+#pragma omp parallel for schedule(static) reduction(+:dmy_energy_q,dmy_energy_theta)
     for(int i = 0; i < nump; i++){
       const int iii = i*DIM*DIM;
       const double qi = (CHARGE ? q[i] : 0.0);
@@ -453,7 +451,7 @@ void ewald::compute_surface(double &energy,
     double sum_qr0, sum_qr1, sum_qr2;
     sum_qr0 = sum_qr1 = sum_qr2 = 0.0;
     if(CHARGE){
-#pragma omp parallel for schedule(dynamic, 1) reduction(+:sum_qr0, sum_qr1, sum_qr2)
+#pragma omp parallel for schedule(static) reduction(+:sum_qr0, sum_qr1, sum_qr2)
       for(int i = 0; i < nump; i++){
         const double* ri = &r[i*DIM];
         sum_qr0 += q[i]*ri[0];
@@ -465,7 +463,7 @@ void ewald::compute_surface(double &energy,
     double sum_mu0, sum_mu1, sum_mu2;
     sum_mu0 = sum_mu1 = sum_mu2 = 0.0;
     if(DIPOLE){
-#pragma omp parallel for schedule(dynamic, 1) reduction(+:sum_mu0, sum_mu1, sum_mu2)
+#pragma omp parallel for schedule(static) reduction(+:sum_mu0, sum_mu1, sum_mu2)
       for(int i = 0; i < nump; i++){
         const double* mui = &mu[i*DIM];
         sum_mu0 += mui[0];
@@ -481,7 +479,7 @@ void ewald::compute_surface(double &energy,
     energy += dmy_factor*(sum_qr_mu0*sum_qr_mu0 + sum_qr_mu1*sum_qr_mu1 + sum_qr_mu2*sum_qr_mu2);
 
     dmy_factor *= (-2.0);
-#pragma omp parallel for schedule(dynamic, 1)
+#pragma omp parallel for schedule(static)
     for(int i = 0; i < nump; i++){
       const int ii = i * DIM;
       const int iii = ii * DIM;
@@ -925,7 +923,7 @@ void ewald::compute_trig_k(const int& ll, const int& mm, const int& nn){
   // cos(p l + q m) = cos(p l) cos(q m) - sin(p l) sin(q m)
   // sin(p l + q m) = sin(p l) cos(q m) + cos(p l) sin(q m)
   sign = (mm > 0 ? 1.0 : -1.0);
-#pragma omp parallel for schedule(dynamic, 1)
+#pragma omp parallel for schedule(static)
   for(int j = 0; j < nump; j++){
     coskr_lm[j] = coskr_l[l][j] * coskr_m[m][j] - sign * sinkr_l[l][j] * sinkr_m[m][j];
     sinkr_lm[j] = sinkr_l[l][j] * coskr_m[m][j] + sign * coskr_l[l][j] * sinkr_m[m][j];
@@ -934,7 +932,7 @@ void ewald::compute_trig_k(const int& ll, const int& mm, const int& nn){
   // cos(p l + q m + r n) = cos(p l + q m) cos(r n) - sin(p l + q m) sin(r n)
   // sin(p l + q m + r n) = sin(p l + q m) cos(r n) + cos(p l + q m) sin(r n)
   sign = (nn > 0 ? 1.0 : -1.0);
-#pragma omp parallel for schedule(dynamic, 1)
+#pragma omp parallel for schedule(static)
   for(int j = 0; j < nump; j++){
     coskr[j] = coskr_lm[j] * coskr_n[n][j] - sign * sinkr_lm[j] * sinkr_n[n][j];
     sinkr[j] = sinkr_lm[j] * coskr_n[n][j] + sign * coskr_lm[j] * sinkr_n[n][j];
@@ -949,7 +947,7 @@ inline void ewald::compute_rho_k(double &rho_re, double &rho_im,
   double dmy_rho_re, dmy_rho_im;
   if(CHARGE){
     dmy_rho_re = dmy_rho_im = 0.0;
-#pragma omp parallel for schedule(dynamic, 1) reduction(+:dmy_rho_re, dmy_rho_im)
+#pragma omp parallel for schedule(static) reduction(+:dmy_rho_re, dmy_rho_im)
     for(int j = 0; j < nump; j++){
       dmy_rho_re += q[j]*coskr[j];
       dmy_rho_im += q[j]*sinkr[j];
@@ -959,7 +957,7 @@ inline void ewald::compute_rho_k(double &rho_re, double &rho_im,
   }
   if(DIPOLE){
     dmy_rho_re = dmy_rho_im = 0.0;
-#pragma omp parallel for schedule(dynamic, 1) reduction(+:dmy_rho_re, dmy_rho_im)
+#pragma omp parallel for schedule(static) reduction(+:dmy_rho_re, dmy_rho_im)
     for(int j = 0; j < nump; j++){
       const double* muj = &mu[j*DIM];
       double mu_k = muj[0]*kk[0] + muj[1]*kk[1] + muj[2]*kk[2];
@@ -971,7 +969,7 @@ inline void ewald::compute_rho_k(double &rho_re, double &rho_im,
   }
   if(QUADRUPOLE){
     dmy_rho_re = dmy_rho_im = 0.0;
-#pragma omp parallel for schedule(dynamic, 1) reduction(+:dmy_rho_re, dmy_rho_im)
+#pragma omp parallel for schedule(static) reduction(+:dmy_rho_re, dmy_rho_im)
     for(int j = 0; j < nump; j++){
       const double* thetaj = &theta[j*DIM*DIM];
       double k_theta_k = -(kk[0]*(thetaj[0]*kk[0] + thetaj[1]*kk[1] + thetaj[2]*kk[2]) +
@@ -1014,7 +1012,7 @@ void ewald::compute_k(double &energy,
 
     ewald_damp *= (cell->PI8iVol);
 
-#pragma omp parallel for schedule(dynamic, 1) private(dmy_force, dmy_efield, dmy_efield_grad0, dmy_efield_grad)
+#pragma omp parallel for schedule(static) private(dmy_force, dmy_efield, dmy_efield_grad0, dmy_efield_grad)
     for(int j = 0; j < nump; j++){
       const int jj = j * DIM;
       const int jjj= jj * DIM;
@@ -1031,7 +1029,6 @@ void ewald::compute_k(double &energy,
 
       dmy_force = -ewald_damp*(qq_re*rho_re + qq_im*rho_im);
       dmy_efield = -ewald_damp*(coskr[j]*rho_im - sinkr[j]*rho_re);
-      dmy_efield_grad0 = ewald_damp*(coskr[j]*rho_re + sinkr[j]*rho_im);
 
       force[jj]   += dmy_force * k0;
       force[jj+1] += dmy_force * k1;
@@ -1041,6 +1038,7 @@ void ewald::compute_k(double &energy,
       efield[jj+1] += dmy_efield * k1;
       efield[jj+2] += dmy_efield * k2;
 
+      dmy_efield_grad0 = ewald_damp*(coskr[j]*rho_re + sinkr[j]*rho_im);
       dmy_efield_grad = dmy_efield_grad0*k0;
       efield_grad[jjj]   += dmy_efield_grad * k0;  //xx
       efield_grad[jjj+1] += dmy_efield_grad * k1;  //xy
@@ -1060,6 +1058,53 @@ void ewald::compute_k(double &energy,
   energy += (cell->PI4iVol)*dmy_energy;
 }
 
+
+void ewald::save_results(const double &E_ewald, double const* force, double const* torque, double const* efield, double const* efield_grad, 
+                         double const* r, double const* q, double const* mu, double const* theta,
+                         char const* save_buffer) const{
+  FILE* fsave = filecheckopen(save_buffer, "w");
+  fprintf(fsave, "%d\n", nump);
+  fprintf(fsave, "%20.12E\n", E_ewald);
+  for(int i = 0; i < nump; i++){
+    const int ii = i*DIM;
+    const int iii= ii*DIM;
+    fprintf(fsave, "%20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E\n",
+            force[ii], force[ii+1], force[ii+2],
+            torque[ii], torque[ii+1], torque[ii+2],
+            efield[ii], efield[ii+1], efield[ii+2],
+            efield_grad[iii], efield_grad[iii+1], efield_grad[iii+2],
+            efield_grad[iii+3], efield_grad[iii+4], efield_grad[iii+5],
+            efield_grad[iii+6], efield_grad[iii+7], efield_grad[iii+8]
+            );
+  }
+  fclose(fsave);
+}
+void ewald::save_results_cp2k(double const* E_ewald, double const* force, double const* torque, double const* efield, double const* efield_grad, 
+                              double const* r, double const* q, double const* mu, double const* theta,
+                              char const* save_buffer) const{
+  //convert to atomic units to compare with cp2k
+  // energy -> hartree
+  // force  -> hartree / bohr radius
+  // length -> bohr radius
+  // assuming lenght units are in angstroms
+  const double e_au = 0.5291772114258002;  //E_h
+  const double f_au = 0.2800285208247281;  //E_h / a0
+  const double r_au = 1.889726124565062;   //a0
+      
+  char cp2k_buffer[256];
+  sprintf(cp2k_buffer, "cp2k_%s", save_buffer);
+  FILE* fcp2k = filecheckopen(cp2k_buffer, "w");
+  fprintf(fcp2k, "%5d\n", nump);
+  fprintf(fcp2k, "i =        0, time =        0.000, E =        %12.10f\n", E_ewald[0]*e_au);
+  for(int i = 0; i < nump; i++){
+    const int ii = i * DIM;
+    fprintf(fcp2k, "%5s   %16.10f   %16.10f   %16.10f\n",
+            (q[i] > 0.0 ? "Na" : "Cl"),
+            force[ii]*f_au, force[ii+1]*f_au, force[ii+2]*f_au
+            );
+  }
+  fclose(fcp2k);
+}
 void ewald::compute(double* E_ewald, 
 		    double* force, 
 		    double* torque, 
@@ -1077,8 +1122,10 @@ void ewald::compute(double* E_ewald,
   double &e_self = E_ewald[3];
   double &e_surface = E_ewald[4];
   e_r = e_k = e_self = e_surface = 0.0;
+ 
   clock_t start_t, end_t;
   double cpu_t;
+  
   start_t = clock();
   this->reset(force, torque, efield, efield_grad);
   this->compute_r(e_r, force, efield, efield_grad, r, q, mu, theta);
@@ -1092,47 +1139,11 @@ void ewald::compute(double* E_ewald,
   fprintf(stderr, "\tExecution Time = %12.5f \n", cpu_t);
   E_ewald[0] = E_ewald[1] + E_ewald[2] + E_ewald[3] + E_ewald[4];
 
-  {
-    FILE* fsave = filecheckopen(save_buffer, "w");
-    fprintf(fsave, "%d\n", nump);
-    fprintf(fsave, "%20.12E\n", E_ewald[0]);
-    for(int i = 0; i < nump; i++){
-      const int ii = i*DIM;
-      const int iii= ii*DIM;
-      fprintf(fsave, "%20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E %20.12E\n",
-              force[ii], force[ii+1], force[ii+2],
-              torque[ii], torque[ii+1], torque[ii+2],
-              efield[ii], efield[ii+1], efield[ii+2],
-              efield_grad[iii], efield_grad[iii+1], efield_grad[iii+2],
-              efield_grad[iii+3], efield_grad[iii+4], efield_grad[iii+5],
-              efield_grad[iii+6], efield_grad[iii+7], efield_grad[iii+8]
-              );
-    }
-    fclose(fsave);
-
-    if(TINFOIL and q != NULL){
-      //convert to atomic units to compare with cp2k
-      // energy -> hartree
-      // force  -> hartree / bohr radius
-      // length -> bohr radius
-      // assuming lenght units are in angstroms
-      const double e_au = 0.5291772114258002;  //E_h
-      const double f_au = 0.2800285208247281;  //E_h / a0
-      const double r_au = 1.889726124565062;   //a0
-      
-      char cp2k_buffer[256];
-      sprintf(cp2k_buffer, "cp2k_%s", save_buffer);
-      FILE* fcp2k = filecheckopen(cp2k_buffer, "w");
-      fprintf(fcp2k, "%5d\n", nump);
-      fprintf(fcp2k, "i =        0, time =        0.000, E =        %12.10f\n", E_ewald[0]*e_au);
-      for(int i = 0; i < nump; i++){
-        const int ii = i * DIM;
-        fprintf(fcp2k, "%5s   %16.10f   %16.10f   %16.10f\n",
-                (q[i] > 0.0 ? "Na" : "Cl"),
-                force[ii]*f_au, force[ii+1]*f_au, force[ii+2]*f_au
-                );
-      }
-      fclose(fcp2k);
-    }
+  /*
+  //save data
+  this -> save_results(E_ewald[0], force, torque, efield, efield_grad, r, q, mu, theta, save_buffer);
+  if(TINFOIL and q != NULL){
+  this -> save_results_cp2k(E_ewald, force, torque, efield, efield_grad, r, q, mu, theta, save_buffer);
   }
+  */
 }

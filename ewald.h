@@ -64,7 +64,10 @@ private:
 
 class ewald {
  public:
-  
+
+  /*!
+    \brief ewald constructor
+   */
   ewald(parallelepiped *_cell,
         const double &ewald_alpha, 
         const double &ewald_epsilon, 
@@ -75,16 +78,33 @@ class ewald {
         const bool& with_dipole, 
         const bool& with_quadrupole
         );
+  /*!
+    \brief ewald destroyer
+   */
+  ~ewald();
 
+
+  /*!
+    \brief Add particles specified in pid to group with given id
+   */
   void add_group(const int &gid, const int &num_elem, const int* pid);
 
+  /*!
+    \brief Reset all particle data
+   */
   void reset(double *force, 
 	     double *torque, 
 	     double *efield,
 	     double *efield_grad);
 
+  /*
+    \brief Reset boundary (replace current epislon at boundary)
+   */
   void reset_boundary(const double &ewald_epsilon);
 
+  /*!
+    \brief Compute all particle quantities using multipolar ewald 
+   */
   void compute(double* E_ewald,
 	       double* force, 
 	       double* torque, 
@@ -96,6 +116,9 @@ class ewald {
 	       double const* theta,
                const char* save_buffer);
 
+  /*!
+    \brief Compute real-space contributions
+   */
   void compute_r(double& energy, 
 		 double* force, 
 		 double* efield,
@@ -105,6 +128,9 @@ class ewald {
 		 double const* mu, 
 		 double const* theta) const;
 
+  /*!
+    \brief Compute k-space contributions
+   */
   void compute_k(double& energy, 
 		 double* force, 
 		 double* efield,
@@ -114,6 +140,9 @@ class ewald {
 		 double const* mu, 
 		 double const* theta);
 
+  /*!
+    \brief Compute surface contributions
+   */
   void compute_surface(double &energy, 
 		       double* force, 
 		       double* efield, 
@@ -123,6 +152,9 @@ class ewald {
 		       double const* mu, 
 		       double const* theta) const;
 
+  /*!
+    \brief Compute self interaction contributions
+   */
   void compute_self(double &energy, 
 		    double* force, 
 		    double* efield, 
@@ -132,13 +164,15 @@ class ewald {
 		    double const* mu, 
 		    double const* theta) const;
 
+  /*!
+    \brief Compute torque on particles given field and field gradient
+   */
   void compute_torque(double* torque,
                       double const* efield,
                       double const* efield_grad,
                       double const* mu,
                       double const* theta) const;
 
-  ~ewald();
 
  private:
   static const double mu_zero[DIM];
@@ -191,15 +225,56 @@ class ewald {
   void init_domain_k(const double &ewald_delta, const double &ewald_conv);
   void free_domain_k();
 
-  void compute_trig_k(const int&ll, const int&mm, const int&nn);
+  /*!
+    \brief Precompute trigonometric sine/cosine factor
+   */
   void precompute_trig_k(double const* r);
+
+  /*!
+    \brief Compute trigonometric factors for given k vector
+   */
+  void compute_trig_k(const int&ll, const int&mm, const int&nn);
+
+  /*!
+    \brief Compute total charge density in k-space
+   */
   void compute_rho_k(double &rho_re, double &rho_im, 
                      double const* q, double const* mu, double const* theta,
                      double const kk[DIM], double const* coskr, double const* sinkr
                      ) const;
 
+  /*!
+    \brief auxiliary routines to copy sekibun cell
+   */
   void copy_cell(const int &domain, int** old_cell, int** &new_cell);
   void copy_cell(const int &domain, double** old_cell, double** &new_cell);
 
+  /*!
+    \brief save data to disk
+   */
+  void save_results(const double &E_ewald, 
+                    double const* force,
+                    double const* torque, 
+                    double const* efield,
+                    double const* efield_grad,
+                    double const* r, 
+                    double const* q, 
+                    double const* mu,
+                    double const* theta,
+                    char const* save_buffer) const;
+
+  /*!
+    \brief save data to disk as cp2k data
+   */
+  void save_results_cp2k(double const* E_ewald,
+                         double const* force,
+                         double const* torque,
+                         double const* efield,
+                         double const* efield_grad,
+                         double const* r, 
+                         double const* q, 
+                         double const* mu,
+                         double const* theta,
+                         char const* save_buffer) const;
 };
 #endif
