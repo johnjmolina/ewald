@@ -9,8 +9,11 @@ double *dval;
 
 double **r;
 double *q;
+double **mu0;
 double **mu;
 double ***theta;
+double ***polar;
+
 double **force;
 double **torque;
 double **efield;
@@ -23,6 +26,7 @@ double **force_gold;
 double **torque_gold;
 double **efield_gold;
 double ***efield_grad_gold;
+
 const double ex[DIM] = {1.0, 0.0, 0.0};
 const double ey[DIM] = {0.0, 1.0, 0.0};
 const double ez[DIM] = {0.0, 0.0, 1.0};
@@ -74,19 +78,23 @@ void init(const int &num){
   dval = (double*) alloc_1d_double(num);
   q = (double*) alloc_1d_double(num);
   mu= (double**) alloc_2d_double(num, DIM);
+  mu0=(double**) alloc_2d_double(num, DIM);
   theta = (double***) alloc_3d_double(num, DIM, DIM);
+  polar = (double***) alloc_3d_double(num, DIM, DIM);
   {
     for(int i = 0; i < num; i++){
       q[i] = dval[i] = 0.0;
     }
     double* rr = r[0];
     double* pp = mu[0];
+    double* qq = mu0[0];
     for(int i = 0; i < num*DIM; i++){
-      rr[i] = pp[i] = 0.0;
+      rr[i] = pp[i] = qq[i] = 0.0;
     }
     double* tt = theta[0][0];
+    double* aa = polar[0][0];
     for(int i = 0; i < num*DIM*DIM; i++){
-      tt[i] = 0.0;
+      tt[i] = aa[i] = 0.0;
     }
   }
 
@@ -99,6 +107,7 @@ void init(const int &num){
   torque_gold = (double**) alloc_2d_double(num, DIM);
   efield_gold = (double**) alloc_2d_double(num, DIM);
   efield_grad_gold = (double***) alloc_3d_double(num, DIM, DIM);
+  print_gold = true;
 }
 void free(){
   free_1d_double(dval);
@@ -106,7 +115,9 @@ void free(){
 
   free_2d_double(r);
   free_2d_double(mu);
+  free_2d_double(mu0);
   free_3d_double(theta);
+  free_3d_double(polar);
 
   free_2d_double(force);
   free_2d_double(torque);

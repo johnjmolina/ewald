@@ -9,7 +9,7 @@
 #include "parameter_define.h"
 #include "gen_shell.h"
 #include "ewald.h"
-
+extern bool print_gold;
 void ewald_minimum_image(double & energy,
                          double **force,
                          double **torque,

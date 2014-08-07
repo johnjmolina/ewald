@@ -1,5 +1,6 @@
 #include "ewald_gold.h"
 
+bool print_gold;
 // Compute pair interaction energy, as well as
 // force, torque, and efield on particle i due to particle j
 inline void pair_interaction(const double rij[DIM],
@@ -388,7 +389,7 @@ void ewald_direct_sum(double &energy,
         field_grad[i][d][1] += shell_field_grad[i][d][1];
         field_grad[i][d][2] += shell_field_grad[i][d][2];
       }
-      if(i == 0){
+      if(i == 0 && print_gold){
 	fprintf(fout, 
 		"%3d %10d %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f\n",
 		nshell, (int) shell.size(),
