@@ -866,6 +866,29 @@ void ewald::compute_torque(double* torque, const double* efield, const double* e
   }
 }
 
+void ewald::compute_upol(double& energy, double const* polarizability, double const* mu_field) const{
+  double dmy_u = 0.0;
+  for(int i = 0; i < nump; i++){
+    const double* xi  = &mu_field[i*DIM];
+    const double* aij = &polarizability[i*DIM*DIM];
+    dmy_u += (xi[0]*(aij[0]*xi[0] + aij[1]*xi[1] + aij[2]*xi[2]) +
+              xi[1]*(aij[3]*xi[0] + aij[4]*xi[1] + aij[5]*xi[2]) +
+              xi[2]*(aij[6]*xi[0] + aij[7]*xi[1] + aij[8]*xi[2]));
+  }
+  energy += (dmy_u/2.0);
+}
+void ewald::compute_mu_induced(double* mu, double const* polarizability, double const* efield) const{
+  for(int i = 0; i < nump; i++){
+    double* mui = &mu[i*DIM];
+    const double* ei  = &efield[i*DIM];
+    const double* aij = &polarizability[i*DIM*DIM];
+
+    mui[0] = (aij[0]*ei[0] + aij[1]*ei[1] + aij[2]*ei[2]);
+    mui[1] = (aij[3]*ei[0] + aij[4]*ei[1] + aij[5]*ei[2]);
+    mui[2] = (aij[6]*ei[0] + aij[7]*ei[1] + aij[8]*ei[2]);
+  }
+}
+
 void ewald::precompute_trig_k(double const* r){
   double* iH = (cell->iLambda)[0];
 #pragma omp parallel for schedule(dynamic, 1)

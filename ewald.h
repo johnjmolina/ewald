@@ -173,6 +173,13 @@ class ewald {
                       double const* mu,
                       double const* theta) const;
 
+  void compute_upol(double& energy, 
+                    double const* polarizability,
+                    double const* mu_field) const;
+
+  void compute_mu_induced(double* mu, 
+                          double const* polarizability, 
+                          double const* efield) const;
 
  private:
   static const double mu_zero[DIM];

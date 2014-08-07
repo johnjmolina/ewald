@@ -127,9 +127,10 @@ int main(int argc, char *argv[]){
     Ewald_energy[0] = Ewald_energy[1] = Ewald_energy[2] = Ewald_energy[3] = Ewald_energy[4] = 0.0;
     ewald_sum -> compute(Ewald_energy, force[0], torque[0], efield[0], efield_grad[0][0],
                          r[0], q, mu[0], theta[0][0], "alpha_ewald.dat");
-    induced_dipole(mu, efield);
+    ewald_sum -> compute_mu_induced(mu[0], polar[0][0], efield[0]);
+    ewald_sum -> compute_upol(Ewald_energy[0], polar[0][0], efield[0]);
+
     total_dipole(mu, mu0);
-    induction_energy(Ewald_energy[0], efield_gold);
     fprintf(stderr, "#ALPHA iter %d\n", i);
     show_results(num, Ewald_energy[0], force, torque, efield, efield_grad, stderr);
     fprintf(stderr, "\n");
