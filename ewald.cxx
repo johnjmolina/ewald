@@ -423,15 +423,21 @@ void ewald::compute_self(double &energy,
       const int iii = i*DIM*DIM;
       const double qi = (CHARGE ? q[i] : 0.0);
       const double* thetai = &theta[iii];
+      const double tr_thetai = thetai[0] + thetai[4] + thetai[8];
 
-      dmy_energy_q += qi*(thetai[0] + thetai[4] + thetai[8]);
+      dmy_energy_q += qi*tr_thetai;
+      dmy_energy_theta += (tr_thetai*tr_thetai)/2.0;
       for(int d = 0; d < DIM; d++){
         const int dd = d * DIM;
 	dmy_energy_theta += (thetai[dd]*thetai[dd] + thetai[dd+1]*thetai[dd+1] + thetai[dd+2]*thetai[dd+2]);
+
         efield_grad[iii + dd]     += 2.0*eta5_factor*thetai[dd];
         efield_grad[iii + dd + 1] += 2.0*eta5_factor*thetai[dd+1];
         efield_grad[iii + dd + 2] += 2.0*eta5_factor*thetai[dd+2];
       }
+      efield_grad[iii]   += eta5_factor*tr_thetai;
+      efield_grad[iii+4] += eta5_factor*tr_thetai;
+      efield_grad[iii+8] += eta5_factor*tr_thetai;
       
     }
     energy += (eta3_factor*dmy_energy_q - eta5_factor*dmy_energy_theta)/3.0;

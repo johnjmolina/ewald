@@ -39,10 +39,6 @@ int main(int argc, char *argv[]){
     //quadrupoles
     dval[i] = 1.0;
     tr_theta = random_quadrupole(dval[i], theta[i][0]);
-    for(int d = 0; d < DIM; d++){
-      theta[i][d][d] -= (tr_theta / 3.0);
-    }
-    assert(zero_mp(theta[i][0][0] + theta[i][1][1] + theta[i][2][2]));
   }
   assert(tot_q == 0.0);
 
