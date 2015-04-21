@@ -34,69 +34,82 @@ AUX_OBJS = alloc.o\
        ewald_gold.o\
        gen_shell.o
 
-OBJS0 = test_charge.o $(AUX_OBJS)
-OBJS1 = test_one.o $(AUX_OBJS)
-OBJS2 = test_two.o $(AUX_OBJS)
-OBJS3 = test_two_random.o $(AUX_OBJS)
-OBJS4 = test_hundred_random.o $(AUX_OBJS)
-OBJS5 = test_charge_hundred_random.o $(AUX_OBJS)
-OBJS6 = test_fcc.o $(AUX_OBJS)
-OBJS7 = test_hundred_random_charge_dipole.o $(AUX_OBJS)
-OBJS8 = test_quadrupole.o $(AUX_OBJS)
-OBJS9 = test_2quadrupole.o $(AUX_OBJS)
-OBJS10= test_alpha.o $(AUX_OBJS)
+# charges
+OBJSA = test_q_2.o $(AUX_OBJS)
+TESTA = test_q_2
 
-TEST0 = test_zero
-TEST1 = test_one
-TEST2 = test_two
-TEST3 = test_two_random
-TEST4 = test_hundred_random
-TEST5 = test_charge_hundred_random
-TEST6 = test_fcc
-TEST7 = test_hundred_q+mu
-TEST8 = test_quadrupole
-TEST9 = test_2quadrupole
-TEST10= test_alpha
+OBJSB = test_q_100_rand.o $(AUX_OBJS)
+TESTB = test_q_100_rand
+
+OBJSC = test_q_256_fcc.o $(AUX_OBJS)
+TESTC = test_q_256_fcc
+
+# dipoles
+OBJSD = test_mu_1.o $(AUX_OBJS)
+TESTD = test_mu_1
+
+OBJSE = test_mu_2.o $(AUX_OBJS)
+TESTE = test_mu_2
+
+OBJSF = test_mu_2_rand.o $(AUX_OBJS)
+TESTF = test_mu_2_rand
+
+OBJSG = test_mu_100_rand.o $(AUX_OBJS)
+TESTG = test_mu_100_rand
+
+# quadrupoles
+OBJSH = test_theta_2_rand.o $(AUX_OBJS)
+TESTH = test_theta_2_rand
+
+# mixtures
+OBJSI = test_q+mu_100_rand.o $(AUX_OBJS)
+TESTI = test_q+mu_100_rand
+
+OBJSJ = test_q+mu+theta_24_rand.o $(AUX_OBJS)
+TESTJ = test_q+mu+theta_24_rand
+
+OBJSK = test_q+mu+alpha_2.o $(AUX_OBJS)
+TESTK = test_q+mu+alpha_2
 
 ## Implicit rules
 
 .SUFFIXES: .c .cxx .o .out
 
 ## Build rules
-all: $(TEST0) $(TEST1) $(TEST2) $(TEST3) $(TEST4) $(TEST5) $(TEST6) $(TEST7) $(TEST8) $(TEST9) $(TEST10)
+all: $(TESTA) $(TESTB) $(TESTC) $(TESTD) $(TESTE) $(TESTF) $(TESTG) $(TESTH) $(TESTI) $(TESTJ) $(TESTK)
 
-$(TEST0): $(OBJS0)
-	$(CXX) $(OBJS0) -o $(TEST0).x $(CFLAGS) $(LINKS)
+$(TESTA): $(OBJSA)
+	$(CXX) $(OBJSA) -o $(TESTA).x $(CFLAGS) $(LINKS)
 
-$(TEST1): $(OBJS1)
-	$(CXX) $(OBJS1) -o $(TEST1).x $(CFLAGS) $(LINKS)
+$(TESTB): $(OBJSB)
+	$(CXX) $(OBJSB) -o $(TESTB).x $(CFLAGS) $(LINKS)
 
-$(TEST2): $(OBJS2)
-	$(CXX) $(OBJS2) -o $(TEST2).x $(CFLAGS) $(LINKS)
+$(TESTC): $(OBJSC)
+	$(CXX) $(OBJSC) -o $(TESTC).x $(CFLAGS) $(LINKS)
 
-$(TEST3): $(OBJS3)
-	$(CXX) $(OBJS3) -o $(TEST3).x $(CFLAGS) $(LINKS)
+$(TESTD): $(OBJSD)
+	$(CXX) $(OBJSD) -o $(TESTD).x $(CFLAGS) $(LINKS)
 
-$(TEST4): $(OBJS4)
-	$(CXX) $(OBJS4) -o $(TEST4).x $(CFLAGS) $(LINKS)
+$(TESTE): $(OBJSE)
+	$(CXX) $(OBJSE) -o $(TESTE).x $(CFLAGS) $(LINKS)
 
-$(TEST5): $(OBJS5)
-	$(CXX) $(OBJS5) -o $(TEST5).x $(CFLAGS) $(LINKS)
+$(TESTF): $(OBJSF)
+	$(CXX) $(OBJSF) -o $(TESTF).x $(CFLAGS) $(LINKS)
 
-$(TEST6): $(OBJS6)
-	$(CXX) $(OBJS6) -o $(TEST6).x $(CFLAGS) $(LINKS)
+$(TESTG): $(OBJSG)
+	$(CXX) $(OBJSG) -o $(TESTG).x $(CFLAGS) $(LINKS)
 
-$(TEST7): $(OBJS7)
-	$(CXX) $(OBJS7) -o $(TEST7).x $(CFLAGS) $(LINKS)
+$(TESTH): $(OBJSH)
+	$(CXX) $(OBJSH) -o $(TESTH).x $(CFLAGS) $(LINKS)
 
-$(TEST8): $(OBJS8)
-	$(CXX) $(OBJS8) -o $(TEST8).x $(CFLAGS) $(LINKS)
+$(TESTI): $(OBJSI)
+	$(CXX) $(OBJSI) -o $(TESTI).x $(CFLAGS) $(LINKS)
 
-$(TEST9): $(OBJS9)
-	$(CXX) $(OBJS9) -o $(TEST9).x $(CFLAGS) $(LINKS)
+$(TESTJ): $(OBJSJ)
+	$(CXX) $(OBJSJ) -o $(TESTJ).x $(CFLAGS) $(LINKS)
 
-$(TEST10): $(OBJS10)
-	$(CXX) $(OBJS10) -o $(TEST10).x $(CFLAGS) $(LINKS)
+$(TESTK): $(OBJSK)
+	$(CXX) $(OBJSK) -o $(TESTK).x $(CFLAGS) $(LINKS)
 
 ## Compile
 
