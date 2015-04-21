@@ -75,8 +75,7 @@ class ewald {
         const double &ewald_conv,
         const int &num_particles,
         const bool& with_charge, 
-        const bool& with_dipole, 
-        const bool& with_quadrupole
+        const bool& with_dipole
         );
   /*!
     \brief ewald destroyer
@@ -113,7 +112,6 @@ class ewald {
                double const* r, 
 	       double const* q,  
 	       double const* mu, 
-	       double const* theta,
                const char* save_buffer);
 
   /*!
@@ -125,8 +123,8 @@ class ewald {
 		 double* efield_grad,
                  double const* r, 
 		 double const* q, 
-		 double const* mu, 
-		 double const* theta) const;
+		 double const* mu
+		 ) const;
 
   /*!
     \brief Compute k-space contributions
@@ -137,8 +135,8 @@ class ewald {
 		 double* efield_grad,
                  double const* r, 
 		 double const* q,
-		 double const* mu, 
-		 double const* theta);
+		 double const* mu
+		 );
 
   /*!
     \brief Compute surface contributions
@@ -149,8 +147,8 @@ class ewald {
 		       double* efield_grad,
 		       double const* r,
 		       double const* q, 
-		       double const* mu, 
-		       double const* theta) const;
+		       double const* mu
+		       ) const;
 
   /*!
     \brief Compute self interaction contributions
@@ -161,8 +159,8 @@ class ewald {
 		    double* efield_grad,
 		    double const* r,
 		    double const* q, 
-		    double const* mu, 
-		    double const* theta) const;
+		    double const* mu
+		    ) const;
 
   /*!
     \brief Compute torque on particles given field and field gradient
@@ -170,8 +168,8 @@ class ewald {
   void compute_torque(double* torque,
                       double const* efield,
                       double const* efield_grad,
-                      double const* mu,
-                      double const* theta) const;
+                      double const* mu
+		      ) const;
 
   void compute_upol(double& energy, 
                     double const* polarizability,
@@ -183,7 +181,6 @@ class ewald {
 
  private:
   static const double mu_zero[DIM];
-  static const double theta_zero[DIM*DIM];
 
   //particle data
   int nump;
@@ -193,7 +190,7 @@ class ewald {
   double rcut, r2max;
   double eta, eta2, eta3, eta_exp;  //screening parameter
   double epsilon_bnd;               //epsilon at boundary
-  bool CHARGE, DIPOLE, QUADRUPOLE;
+  bool CHARGE, DIPOLE;
   bool TINFOIL;
 
   // k space parameters
@@ -246,7 +243,7 @@ class ewald {
     \brief Compute total charge density in k-space
    */
   void compute_rho_k(double &rho_re, double &rho_im, 
-                     double const* q, double const* mu, double const* theta,
+                     double const* q, double const* mu,
                      double const kk[DIM], double const* coskr, double const* sinkr
                      ) const;
 
@@ -267,7 +264,6 @@ class ewald {
                     double const* r, 
                     double const* q, 
                     double const* mu,
-                    double const* theta,
                     char const* save_buffer) const;
 
   /*!
@@ -281,7 +277,6 @@ class ewald {
                          double const* r, 
                          double const* q, 
                          double const* mu,
-                         double const* theta,
                          char const* save_buffer) const;
 };
 #endif

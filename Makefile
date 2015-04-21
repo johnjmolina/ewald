@@ -57,19 +57,12 @@ TESTF = test_mu_2_rand
 OBJSG = test_mu_100_rand.o $(AUX_OBJS)
 TESTG = test_mu_100_rand
 
-# quadrupoles
-OBJSH = test_theta_2_rand.o $(AUX_OBJS)
-TESTH = test_theta_2_rand
-
 # mixtures
-OBJSI = test_q+mu_100_rand.o $(AUX_OBJS)
-TESTI = test_q+mu_100_rand
+OBJSH = test_q+mu_100_rand.o $(AUX_OBJS)
+TESTH = test_q+mu_100_rand
 
-OBJSJ = test_q+mu+theta_24_rand.o $(AUX_OBJS)
-TESTJ = test_q+mu+theta_24_rand
-
-OBJSK = test_q+mu+alpha_2.o $(AUX_OBJS)
-TESTK = test_q+mu+alpha_2
+OBJSI = test_q+mu+alpha_2.o $(AUX_OBJS)
+TESTI = test_q+mu+alpha_2
 
 ## Implicit rules
 
@@ -104,12 +97,6 @@ $(TESTH): $(OBJSH)
 
 $(TESTI): $(OBJSI)
 	$(CXX) $(OBJSI) -o $(TESTI).x $(CFLAGS) $(LINKS)
-
-$(TESTJ): $(OBJSJ)
-	$(CXX) $(OBJSJ) -o $(TESTJ).x $(CFLAGS) $(LINKS)
-
-$(TESTK): $(OBJSK)
-	$(CXX) $(OBJSK) -o $(TESTK).x $(CFLAGS) $(LINKS)
 
 ## Compile
 

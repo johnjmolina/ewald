@@ -17,7 +17,7 @@ int main(int argc, char *argv[]){
   random_dipole(dval[1], mu[1]);
 
   set_cubic_box(10.0);
-  compute_all(true, true, false, name);
+  compute_all(true, true, name);
   free();
   delete ewald_sum;
   return 0;

@@ -28,7 +28,7 @@ int main(int argc, char *argv[]){
     }
   }
   ndirect = 16;
-  compute_all(true, true, false, name);
+  compute_all(true, true, name);
   free();
   delete ewald_sum;
   return 0;

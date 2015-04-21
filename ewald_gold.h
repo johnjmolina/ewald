@@ -20,7 +20,6 @@ void ewald_minimum_image(double & energy,
                          double const* const* r,
                          double const* q,
                          double const* const* mu,
-                         double const* const* const* theta,
                          FILE* fout,
                          const char* save_buffer
                          );
@@ -39,7 +38,6 @@ void ewald_direct_sum_naive(double &energy,
                             double const* const* r,
                             double const* q,
                             double const* const* mu,
-                            double const* const* const* theta,
                             FILE* fout,
                             const char* save_buffer
                              );
@@ -55,7 +53,6 @@ void ewald_direct_sum(double &energy,
                       double const* const* r,
                       double const* q,
                       double const* const* mu,
-                      double const* const* const* theta,
                       FILE* fout,
                       const char* save_buffer
                        );

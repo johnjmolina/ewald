@@ -11,7 +11,6 @@ double **r;
 double *q;
 double **mu0;
 double **mu;
-double ***theta;
 double ***polar;
 
 double **force;
@@ -59,14 +58,6 @@ void random_dipole(const double &val, double mui[DIM]){
   mui[1] = val*sin(theta)*sin(phi);
   mui[2] = val*cos(theta);
 }
-double random_quadrupole(const double &val, double theta[DIM*DIM]){
-  for(int i = 0; i < DIM; i++){
-    for(int j = i; j < DIM; j++){
-      theta[i*DIM + j] = theta[j*DIM + i] = RAx(val);
-    }
-  }
-  return (theta[0] + theta[4] + theta[8]);
-}
 void init(const int &num){
   alpha  = 8.0;
   delta  = 1.0e-16;
@@ -79,7 +70,6 @@ void init(const int &num){
   q = (double*) alloc_1d_double(num);
   mu= (double**) alloc_2d_double(num, DIM);
   mu0=(double**) alloc_2d_double(num, DIM);
-  theta = (double***) alloc_3d_double(num, DIM, DIM);
   polar = (double***) alloc_3d_double(num, DIM, DIM);
   {
     for(int i = 0; i < num; i++){
@@ -91,10 +81,9 @@ void init(const int &num){
     for(int i = 0; i < num*DIM; i++){
       rr[i] = pp[i] = qq[i] = 0.0;
     }
-    double* tt = theta[0][0];
     double* aa = polar[0][0];
     for(int i = 0; i < num*DIM*DIM; i++){
-      tt[i] = aa[i] = 0.0;
+      aa[i] = 0.0;
     }
   }
 
@@ -116,7 +105,6 @@ void free(){
   free_2d_double(r);
   free_2d_double(mu);
   free_2d_double(mu0);
-  free_3d_double(theta);
   free_3d_double(polar);
 
   free_2d_double(force);
@@ -230,27 +218,25 @@ void compute_gold(const char* save_buffer){
   if(!load_gold(save_buffer)){
     energy_gold = 0.0;
     ewald_direct_sum(energy_gold, force_gold, torque_gold, efield_gold, efield_grad_gold, 
-		     ndirect, num, *cell, r, q, mu, theta, stderr, save_buffer);
+		     ndirect, num, *cell, r, q, mu, stderr, save_buffer);
   }else{
     fprintf(stderr, "******* Reference results loaded from %s_gold.dat\n", save_buffer);
   }
   show_results(num, energy_gold, force_gold, torque_gold, efield_gold, efield_grad_gold, stderr);
 }
 void compute_all(const bool& charge, 
-		 const bool& dipole, 
-		 const bool& quadrupole, 
+		 const bool& dipole,
 		 const char* save_buffer){
 
   double* dmy_q     = (charge ? q : NULL);
   double* dmy_mu    = (dipole ? mu[0]: NULL);
-  double* dmy_theta = (quadrupole ? theta[0][0]: NULL);
   
   compute_gold(save_buffer);
 
   fprintf(stderr, "\n****** Ewald Calculation\n");
   epsilon = 1.0;
   ewald_sum = new ewald(cell, alpha, epsilon, delta, conv, num,
-                        charge, dipole, quadrupole);
+                        charge, dipole);
   
   char kbuffer[256];
   sprintf(kbuffer, "%s_ewald_1.dat", save_buffer);
@@ -258,7 +244,7 @@ void compute_all(const bool& charge,
   epsilon = 1.0;
   ewald_sum -> reset_boundary(epsilon);
   ewald_sum -> compute(Ewald_energy, force[0], torque[0], efield[0], efield_grad[0][0],
-		       r[0], dmy_q, dmy_mu, dmy_theta, kbuffer);
+		       r[0], dmy_q, dmy_mu, kbuffer);
   check_convergence(energy_gold, Ewald_energy[0], rmstol);
   show_results(num, Ewald_energy[0], force, torque, efield, efield_grad, stderr);
   
@@ -267,7 +253,7 @@ void compute_all(const bool& charge,
   epsilon = -1.0;
   ewald_sum -> reset_boundary(epsilon);
   ewald_sum -> compute(Ewald_energy, force[0], torque[0], efield[0], efield_grad[0][0],
-		       r[0], dmy_q, dmy_mu, dmy_theta, kbuffer);
+		       r[0], dmy_q, dmy_mu, kbuffer);
   check_convergence(energy_gold, Ewald_energy[0], rmstol2);
   show_results(num, Ewald_energy[0], force, torque, efield, efield_grad, stderr);
   print_convergence(rmstol, rmstol2, stderr);

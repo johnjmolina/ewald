@@ -40,7 +40,7 @@ int main(int argc, char *argv[]){
   set_cubic_box(float(ncells));
   fccLattice(ncells);
   ndirect = 12;
-  compute_all(true, true, true, name);
+  compute_all(true, true, name);
   free();
   delete ewald_sum;
   return 0;

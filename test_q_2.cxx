@@ -18,7 +18,7 @@ int main(int argc, char *argv[]){
   mu[0][0] = mu[0][1] = mu[0][2] = 0.0;
   mu[1][0] = mu[1][1] = mu[1][2] = 0.0;
   set_cubic_box(10.0);
-  compute_all(true, true, false, name);
+  compute_all(true, true, name);
   free();
   delete ewald_sum;
   return 0;

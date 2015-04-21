@@ -53,7 +53,6 @@ int main(int argc, char *argv[]){
     mu0[i][0] = mu0[i][1] = mu0[i][2] = 0.0;
     mu[i][0] = mu[i][1] = mu[i][2] = 0.0;
     for(int d = 0; d < DIM; d++){
-      theta[i][d][0] = theta[i][d][1] = theta[i][d][2] = 0.0;
       polar[i][d][0] = polar[i][d][1] = polar[i][d][2] = 0.0;
     }
   }
@@ -96,7 +95,7 @@ int main(int argc, char *argv[]){
 
     ewald_direct_sum(energy_gold, force_gold, torque_gold,
                      efield_gold, efield_grad_gold,
-                     ndirect, num, *cell, r, q, mu, theta, stderr, name);
+                     ndirect, num, *cell, r, q, mu, stderr, name);
     induced_dipole(mu, efield_gold);
     total_dipole(mu, mu0);
     induction_energy(energy_gold, efield_gold);
@@ -109,7 +108,7 @@ int main(int argc, char *argv[]){
   energy_gold = 0.0;
   ewald_direct_sum(energy_gold, force_gold, torque_gold,
                    efield_gold, efield_grad_gold,
-                   ndirect, num, *cell, r, q, mu, theta, stderr, name);
+                   ndirect, num, *cell, r, q, mu, stderr, name);
   induction_energy(energy_gold, efield_gold);
   show_results(num, energy_gold, force_gold, torque_gold, efield_gold,
                efield_grad_gold, stderr);
@@ -121,12 +120,12 @@ int main(int argc, char *argv[]){
   //ewald calculation
   reset_dipole(mu);
   epsilon = 1.0;
-  ewald_sum = new ewald(cell, alpha, epsilon, delta, conv, num, true, true, false);
+  ewald_sum = new ewald(cell, alpha, epsilon, delta, conv, num, true, true);
   Ewald_energy[0] = Ewald_energy[1] = Ewald_energy[2] = Ewald_energy[3] = Ewald_energy[4] = 0.0;
   for(int i = 0; i <= niter; i++){
     Ewald_energy[0] = Ewald_energy[1] = Ewald_energy[2] = Ewald_energy[3] = Ewald_energy[4] = 0.0;
     ewald_sum -> compute(Ewald_energy, force[0], torque[0], efield[0], efield_grad[0][0],
-                         r[0], q, mu[0], theta[0][0], "alpha_ewald.dat");
+                         r[0], q, mu[0], "alpha_ewald.dat");
     ewald_sum -> compute_mu_induced(mu[0], polar[0][0], efield[0]);
     ewald_sum -> compute_upol(Ewald_energy[0], polar[0][0], efield[0]);
 
