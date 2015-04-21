@@ -241,6 +241,7 @@ void compute_all(const bool& charge,
   epsilon = 1.0;
   ewald_sum = new ewald(cell, alpha, epsilon, delta, conv, num,
                         charge, dipole);
+  ewald_sum -> define_groups(group_id);
   
   char kbuffer[256];
   sprintf(kbuffer, "%s_ewald_1.dat", save_buffer);

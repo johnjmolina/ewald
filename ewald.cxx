@@ -349,6 +349,12 @@ void ewald::add_group(const int &gid, const int &num_elem, const int* pid){
   }
 }
 
+void ewald::define_groups(const int* gid){
+  for(int i = 0; i < nump; i++){
+    group[i] = gid[i];
+  }
+}
+
 void ewald::reset(double *force, 
 		  double *torque, 
 		  double *efield,
@@ -513,184 +519,180 @@ void ewald::compute_r(double &energy,
       const int iii= ii*DIM;
       const int iid= group[i];
       
-      //i and j belong to different group
-      if(jid != iid){
+      cell->distance_MI(&r[ii], &r[jj], rij);
+      drij = rij[0]*rij[0] + rij[1]*rij[1] + rij[2]*rij[2];
+      //i and j within cutoff distance
+      if(drij < r2max){
+	const double  qi  = (CHARGE ? q[i] : 0.0);
+	const double* mui = (DIPOLE ? &mu[ii] : mu_zero);
+	dmy_force[0] = dmy_force[1] = dmy_force[2] = 0.0;
+	dmy_efieldi[0] = dmy_efieldi[1] = dmy_efieldi[2] = 0.0;
+	dmy_efieldj[0] = dmy_efieldj[1] = dmy_efieldj[2] = 0.0;
         
-        cell->distance_MI(&r[ii], &r[jj], rij);
-        drij = rij[0]*rij[0] + rij[1]*rij[1] + rij[2]*rij[2];
-	//i and j within cutoff distance
-        if(drij < r2max){
-          const double  qi  = (CHARGE ? q[i] : 0.0);
-          const double* mui = (DIPOLE ? &mu[ii] : mu_zero);
-          dmy_force[0] = dmy_force[1] = dmy_force[2] = 0.0;
-          dmy_efieldi[0] = dmy_efieldi[1] = dmy_efieldi[2] = 0.0;
-          dmy_efieldj[0] = dmy_efieldj[1] = dmy_efieldj[2] = 0.0;
+	dmy_efieldi_dx[0] = dmy_efieldi_dx[1] = dmy_efieldi_dx[2] = 0.0;
+	dmy_efieldi_dy[0] = dmy_efieldi_dy[1] = dmy_efieldi_dy[2] = 0.0;
+	dmy_efieldi_dz[0] = dmy_efieldi_dz[1] = dmy_efieldi_dz[2] = 0.0;
+        
+	dmy_efieldj_dx[0] = dmy_efieldj_dx[1] = dmy_efieldj_dx[2] = 0.0;
+	dmy_efieldj_dy[0] = dmy_efieldj_dy[1] = dmy_efieldj_dy[2] = 0.0;
+	dmy_efieldj_dz[0] = dmy_efieldj_dz[1] = dmy_efieldj_dz[2] = 0.0;
+        
+	drij = sqrt(drij);
+	erfc_ewald = (iid != jid ? erfc(eta*drij) : -erf(eta*drij));
+	dmy_0 = exp(-eta2*drij*drij);
+	drij = 1.0 / drij;
+	drij2= drij*drij;
+	
+	dmy_0 *= 2.0*eta*iRoot_PI;
+	Br = (erfc_ewald*drij + dmy_0) * drij2;
+        
+	dmy_0 *= 2.0*eta2;
+	Cr = (3.0 * Br + dmy_0) * drij2;
+        
+	dmy_0 *= 2.0*eta2;
+	Dr = (5.0 * Cr + dmy_0) * drij2;
+	
+	dmy_0 *= 2.0*eta2;
+	Er = (7.0 * Dr + dmy_0) * drij2;
+	
+	dmy_0 *= 2.0*eta2;
+	Fr = (9.0 * Er + dmy_0) * drij2;
+        
+	if(CHARGE){
+	  dmy_energy += erfc_ewald*drij*qi*qj;
           
-          dmy_efieldi_dx[0] = dmy_efieldi_dx[1] = dmy_efieldi_dx[2] = 0.0;
-          dmy_efieldi_dy[0] = dmy_efieldi_dy[1] = dmy_efieldi_dy[2] = 0.0;
-          dmy_efieldi_dz[0] = dmy_efieldi_dz[1] = dmy_efieldi_dz[2] = 0.0;
-          
-          dmy_efieldj_dx[0] = dmy_efieldj_dx[1] = dmy_efieldj_dx[2] = 0.0;
-          dmy_efieldj_dy[0] = dmy_efieldj_dy[1] = dmy_efieldj_dy[2] = 0.0;
-          dmy_efieldj_dz[0] = dmy_efieldj_dz[1] = dmy_efieldj_dz[2] = 0.0;
-          
-          drij = sqrt(drij);
-          erfc_ewald = erfc(eta*drij);
-          dmy_0 = exp(-eta2*drij*drij);
-          drij = 1.0 / drij;
-          drij2= drij*drij;
-
-          dmy_0 *= 2.0*eta*iRoot_PI;
-          Br = (erfc_ewald*drij + dmy_0) * drij2;
-          
-          dmy_0 *= 2.0*eta2;
-          Cr = (3.0 * Br + dmy_0) * drij2;
-          
-          dmy_0 *= 2.0*eta2;
-          Dr = (5.0 * Cr + dmy_0) * drij2;
-
-          dmy_0 *= 2.0*eta2;
-          Er = (7.0 * Dr + dmy_0) * drij2;
-
-          dmy_0 *= 2.0*eta2;
-          Fr = (9.0 * Er + dmy_0) * drij2;
-          
-          if(CHARGE){
-            dmy_energy += erfc_ewald*drij*qi*qj;
+	  for(int d = 0; d < DIM; d++){
+	    dmy_0 = Br*rij[d];
+	    dmy_force[d]   += qj*qi*dmy_0;
+	    dmy_efieldi[d] += qj*dmy_0;
+	    dmy_efieldj[d] += (-qi*dmy_0);
             
-            for(int d = 0; d < DIM; d++){
-              dmy_0 = Br*rij[d];
-              dmy_force[d]   += qj*qi*dmy_0;
-              dmy_efieldi[d] += qj*dmy_0;
-              dmy_efieldj[d] += (-qi*dmy_0);
-              
-              dmy_0 = (-Cr*rij[d]);
-              dmy_1 = qj * dmy_0;
-              dmy_2 = qi * dmy_0;
-              dmy_efieldi_dx[d] += (dmy_1*rij[0]);
-              dmy_efieldi_dy[d] += (dmy_1*rij[1]);
-              dmy_efieldi_dz[d] += (dmy_1*rij[2]);
-              dmy_efieldj_dx[d] += (dmy_2*rij[0]);
-              dmy_efieldj_dy[d] += (dmy_2*rij[1]);
-              dmy_efieldj_dz[d] += (dmy_2*rij[2]);
-            }
-            
-            dmy_0 = qj*Br;
-            dmy_1 = qi*Br;
-            dmy_efieldi_dx[0] += dmy_0;
-            dmy_efieldi_dy[1] += dmy_0;
-            dmy_efieldi_dz[2] += dmy_0;
-            dmy_efieldj_dx[0] += dmy_1;
-            dmy_efieldj_dy[1] += dmy_1;
-            dmy_efieldj_dz[2] += dmy_1;
-          }
-
-          if(DIPOLE){
-            mui_r = v_inner_prod(mui, rij);
-            muj_r = v_inner_prod(muj, rij);
-            mui_muj = v_inner_prod(mui, muj);
-            
-            //charge - dipole
-            if(CHARGE){
-              dmy_energy += Br*(qi*muj_r - qj*mui_r);
-              dmy_0 = Cr*(qi*muj_r - qj*mui_r);
-              dmy_1 = qj*Br;
-              dmy_2 = -qi*Br;
-              for(int d = 0; d < DIM; d++) dmy_force[d] += (dmy_0*rij[d] + dmy_1*mui[d] + dmy_2*muj[d]);
-            }
-            
-            //dipole - dipole          
-            dmy_energy += Br*mui_muj - Cr*mui_r*muj_r;
-            for(int d = 0; d < DIM; d++){
-              dmy_0 = rij[d] * Cr;
-              dmy_1 = muj[d] * Cr;
-              dmy_2 = mui[d] * Cr;
-              dmy_3 = -rij[d] * muj_r * Dr;
-              
-              dmy_force[d] += (dmy_0*mui_muj + (dmy_1+dmy_3)*mui_r + dmy_2*muj_r);
-              dmy_efieldi[d] += (-Br*muj[d] + dmy_0*muj_r);
-              dmy_efieldj[d] += (-Br*mui[d] + dmy_0*mui_r);
-              
-              dmy_efieldi_dx[d] += (dmy_0*muj[0] + dmy_1*rij[0] + dmy_3*rij[0]);
-              dmy_efieldi_dy[d] += (dmy_0*muj[1] + dmy_1*rij[1] + dmy_3*rij[1]);
-              dmy_efieldi_dz[d] += (dmy_0*muj[2] + dmy_1*rij[2] + dmy_3*rij[2]);
-              
-              dmy_3 = -rij[d] * mui_r * Dr;
-              dmy_efieldj_dx[d] -= (dmy_0*mui[0] + dmy_2*rij[0] + dmy_3*rij[0]);
-              dmy_efieldj_dy[d] -= (dmy_0*mui[1] + dmy_2*rij[1] + dmy_3*rij[1]);
-              dmy_efieldj_dz[d] -= (dmy_0*mui[2] + dmy_2*rij[2] + dmy_3*rij[2]);
-            }
-            dmy_0 = Cr*muj_r;
-            dmy_1 = -Cr*mui_r;
-            dmy_efieldi_dx[0] += dmy_0;
-            dmy_efieldi_dy[1] += dmy_0;
-            dmy_efieldi_dz[2] += dmy_0;
-            dmy_efieldj_dx[0] += dmy_1;
-            dmy_efieldj_dy[1] += dmy_1;
-            dmy_efieldj_dz[2] += dmy_1;
-          }
+	    dmy_0 = (-Cr*rij[d]);
+	    dmy_1 = qj * dmy_0;
+	    dmy_2 = qi * dmy_0;
+	    dmy_efieldi_dx[d] += (dmy_1*rij[0]);
+	    dmy_efieldi_dy[d] += (dmy_1*rij[1]);
+	    dmy_efieldi_dz[d] += (dmy_1*rij[2]);
+	    dmy_efieldj_dx[d] += (dmy_2*rij[0]);
+	    dmy_efieldj_dy[d] += (dmy_2*rij[1]);
+	    dmy_efieldj_dz[d] += (dmy_2*rij[2]);
+	  }
           
-          {
-            //forces
-#pragma omp atomic
-            force[ii]   += dmy_force[0];
-#pragma omp atomic
-            force[ii+1] += dmy_force[1];
-#pragma omp atomic
-            force[ii+2] += dmy_force[2];
-            
-            force[jj]   -= dmy_force[0];
-            force[jj+1] -= dmy_force[1];
-            force[jj+2] -= dmy_force[2];
-          }
+	  dmy_0 = qj*Br;
+	  dmy_1 = qi*Br;
+	  dmy_efieldi_dx[0] += dmy_0;
+	  dmy_efieldi_dy[1] += dmy_0;
+	  dmy_efieldi_dz[2] += dmy_0;
+	  dmy_efieldj_dx[0] += dmy_1;
+	  dmy_efieldj_dy[1] += dmy_1;
+	  dmy_efieldj_dz[2] += dmy_1;
+	}
+	
+	if(DIPOLE){
+	  mui_r = v_inner_prod(mui, rij);
+	  muj_r = v_inner_prod(muj, rij);
+	  mui_muj = v_inner_prod(mui, muj);
           
-          {
-            //electric fields
-#pragma omp atomic
-            efield[ii]   += dmy_efieldi[0];
-#pragma omp atomic
-            efield[ii+1] += dmy_efieldi[1];
-#pragma omp atomic
-            efield[ii+2] += dmy_efieldi[2];
-            
-            efield[jj]   += dmy_efieldj[0];
-            efield[jj+1] += dmy_efieldj[1];
-            efield[jj+2] += dmy_efieldj[2];
-          }
+	  //charge - dipole
+	  if(CHARGE){
+	    dmy_energy += Br*(qi*muj_r - qj*mui_r);
+	    dmy_0 = Cr*(qi*muj_r - qj*mui_r);
+	    dmy_1 = qj*Br;
+	    dmy_2 = -qi*Br;
+	    for(int d = 0; d < DIM; d++) dmy_force[d] += (dmy_0*rij[d] + dmy_1*mui[d] + dmy_2*muj[d]);
+	  }
           
-          //gradient of electric fields
-          {
-#pragma omp atomic
-            efield_grad[iii]   += dmy_efieldi_dx[0];
-#pragma omp atomic
-            efield_grad[iii+1] += dmy_efieldi_dx[1];
-#pragma omp atomic
-            efield_grad[iii+2] += dmy_efieldi_dx[2];
-#pragma omp atomic
-            efield_grad[iii+3] += dmy_efieldi_dy[0];
-#pragma omp atomic
-            efield_grad[iii+4] += dmy_efieldi_dy[1];
-#pragma omp atomic
-            efield_grad[iii+5] += dmy_efieldi_dy[2];
-#pragma omp atomic
-            efield_grad[iii+6] += dmy_efieldi_dz[0];
-#pragma omp atomic
-            efield_grad[iii+7] += dmy_efieldi_dz[1];
-#pragma omp atomic
-            efield_grad[iii+8] += dmy_efieldi_dz[2];
+	  //dipole - dipole          
+	  dmy_energy += Br*mui_muj - Cr*mui_r*muj_r;
+	  for(int d = 0; d < DIM; d++){
+	    dmy_0 = rij[d] * Cr;
+	    dmy_1 = muj[d] * Cr;
+	    dmy_2 = mui[d] * Cr;
+	    dmy_3 = -rij[d] * muj_r * Dr;
             
-            efield_grad[jjj]   += dmy_efieldj_dx[0];
-            efield_grad[jjj+1] += dmy_efieldj_dx[1];
-            efield_grad[jjj+2] += dmy_efieldj_dx[2];
-            efield_grad[jjj+3] += dmy_efieldj_dy[0];
-            efield_grad[jjj+4] += dmy_efieldj_dy[1];
-            efield_grad[jjj+5] += dmy_efieldj_dy[2];
-            efield_grad[jjj+6] += dmy_efieldj_dz[0];
-            efield_grad[jjj+7] += dmy_efieldj_dz[1];
-            efield_grad[jjj+8] += dmy_efieldj_dz[2];
-          }          
-        }//rij < r2max
-      }//jid != iid
+	    dmy_force[d] += (dmy_0*mui_muj + (dmy_1+dmy_3)*mui_r + dmy_2*muj_r);
+	    dmy_efieldi[d] += (-Br*muj[d] + dmy_0*muj_r);
+	    dmy_efieldj[d] += (-Br*mui[d] + dmy_0*mui_r);
+            
+	    dmy_efieldi_dx[d] += (dmy_0*muj[0] + dmy_1*rij[0] + dmy_3*rij[0]);
+	    dmy_efieldi_dy[d] += (dmy_0*muj[1] + dmy_1*rij[1] + dmy_3*rij[1]);
+	    dmy_efieldi_dz[d] += (dmy_0*muj[2] + dmy_1*rij[2] + dmy_3*rij[2]);
+            
+	    dmy_3 = -rij[d] * mui_r * Dr;
+	    dmy_efieldj_dx[d] -= (dmy_0*mui[0] + dmy_2*rij[0] + dmy_3*rij[0]);
+	    dmy_efieldj_dy[d] -= (dmy_0*mui[1] + dmy_2*rij[1] + dmy_3*rij[1]);
+	    dmy_efieldj_dz[d] -= (dmy_0*mui[2] + dmy_2*rij[2] + dmy_3*rij[2]);
+	  }
+	  dmy_0 = Cr*muj_r;
+	  dmy_1 = -Cr*mui_r;
+	  dmy_efieldi_dx[0] += dmy_0;
+	  dmy_efieldi_dy[1] += dmy_0;
+	  dmy_efieldi_dz[2] += dmy_0;
+	  dmy_efieldj_dx[0] += dmy_1;
+	  dmy_efieldj_dy[1] += dmy_1;
+	  dmy_efieldj_dz[2] += dmy_1;
+	}
+        
+	{
+	  //forces
+#pragma omp atomic
+	  force[ii]   += dmy_force[0];
+#pragma omp atomic
+	  force[ii+1] += dmy_force[1];
+#pragma omp atomic
+	  force[ii+2] += dmy_force[2];
+          
+	  force[jj]   -= dmy_force[0];
+	  force[jj+1] -= dmy_force[1];
+	  force[jj+2] -= dmy_force[2];
+	}
+        
+	{
+	  //electric fields
+#pragma omp atomic
+	  efield[ii]   += dmy_efieldi[0];
+#pragma omp atomic
+	  efield[ii+1] += dmy_efieldi[1];
+#pragma omp atomic
+	  efield[ii+2] += dmy_efieldi[2];
+          
+	  efield[jj]   += dmy_efieldj[0];
+	  efield[jj+1] += dmy_efieldj[1];
+	  efield[jj+2] += dmy_efieldj[2];
+	}
+        
+	//gradient of electric fields
+	{
+#pragma omp atomic
+	  efield_grad[iii]   += dmy_efieldi_dx[0];
+#pragma omp atomic
+	  efield_grad[iii+1] += dmy_efieldi_dx[1];
+#pragma omp atomic
+	  efield_grad[iii+2] += dmy_efieldi_dx[2];
+#pragma omp atomic
+	  efield_grad[iii+3] += dmy_efieldi_dy[0];
+#pragma omp atomic
+	  efield_grad[iii+4] += dmy_efieldi_dy[1];
+#pragma omp atomic
+	  efield_grad[iii+5] += dmy_efieldi_dy[2];
+#pragma omp atomic
+	  efield_grad[iii+6] += dmy_efieldi_dz[0];
+#pragma omp atomic
+	  efield_grad[iii+7] += dmy_efieldi_dz[1];
+#pragma omp atomic
+	  efield_grad[iii+8] += dmy_efieldi_dz[2];
+          
+	  efield_grad[jjj]   += dmy_efieldj_dx[0];
+	  efield_grad[jjj+1] += dmy_efieldj_dx[1];
+	  efield_grad[jjj+2] += dmy_efieldj_dx[2];
+	  efield_grad[jjj+3] += dmy_efieldj_dy[0];
+	  efield_grad[jjj+4] += dmy_efieldj_dy[1];
+	  efield_grad[jjj+5] += dmy_efieldj_dy[2];
+	  efield_grad[jjj+6] += dmy_efieldj_dz[0];
+	  efield_grad[jjj+7] += dmy_efieldj_dz[1];
+	  efield_grad[jjj+8] += dmy_efieldj_dz[2];
+	}          
+      }//rij < r2max
     }//i
   }//j
   energy += dmy_energy;

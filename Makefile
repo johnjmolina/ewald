@@ -64,6 +64,9 @@ TESTH = test_q+mu_100_rand
 OBJSI = test_q+mu+alpha_2.o $(AUX_OBJS)
 TESTI = test_q+mu+alpha_2
 
+OBJSJ = test_q+mu+alpha_2_water.o $(AUX_OBJS)
+TESTJ = test_q+mu+alpha_2_water
+
 ## Implicit rules
 
 .SUFFIXES: .c .cxx .o .out
@@ -97,6 +100,9 @@ $(TESTH): $(OBJSH)
 
 $(TESTI): $(OBJSI)
 	$(CXX) $(OBJSI) -o $(TESTI).x $(CFLAGS) $(LINKS)
+
+$(TESTJ): $(OBJSJ)
+	$(CXX) $(OBJSJ) -o $(TESTJ).x $(CFLAGS) $(LINKS)
 
 ## Compile
 

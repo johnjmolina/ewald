@@ -89,6 +89,11 @@ class ewald {
   void add_group(const int &gid, const int &num_elem, const int* pid);
 
   /*!
+    \brief define groups for all particles
+   */
+  void define_groups(const int* gid);
+
+  /*!
     \brief Reset all particle data
    */
   void reset(double *force, 
