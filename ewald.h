@@ -84,7 +84,7 @@ class ewald {
 
 
   /*!
-    \brief Add particles specified in pid to group with given id
+    \brief Add num_elem particles specified in pid to group with given id
    */
   void add_group(const int &gid, const int &num_elem, const int* pid);
 

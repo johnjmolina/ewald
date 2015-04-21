@@ -311,7 +311,9 @@ ewald::ewald(parallelepiped *_cell,
   cell = _cell;
 
   {//particle parameters
-  nump = num_particles;
+
+    // default: consider each particle to be independent, unique negative gid for each
+    nump = num_particles;
     group  = alloc_1d_int(nump);
     for(int i = 0; i < nump; i++){
       group[i] = -(i+1);

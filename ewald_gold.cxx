@@ -82,6 +82,7 @@ void ewald_minimum_image(double & energy,
 			 double ***field_grad,
                          const int &Nparticles,
                          const parallelepiped &rcell,
+			 int const* gid,
                          double const* const* r,
                          double const* q,
                          double const* const* mu,
@@ -92,14 +93,16 @@ void ewald_minimum_image(double & energy,
   double dmy_force[DIM], dmy_torque[DIM], dmy_field[DIM], dmy_field_grad[DIM][DIM];
   double rij_mi[DIM];
   for(int i = 0; i < Nparticles; i++){
+    const int    iid  = gid[i];
     const double qi   = q[i];
     const double* mui = mu[i];
 
     for(int j = 0; j < Nparticles; j++){
+      const int   jid   = gid[j];
       const double qj   = q[j];
       const double* muj = mu[j];
 
-      if(i != j){
+      if(iid != jid){
         rcell.distance_MI(r[i], r[j], rij_mi);
         pair_interaction(rij_mi, qi, qj, mui, muj,
                          dmy_energy, dmy_force, dmy_torque, dmy_field, dmy_field_grad);
@@ -145,6 +148,7 @@ void ewald_direct_sum(double &energy,
                       const int &ncut,
                       const int &Nparticles,
                       const parallelepiped &rcell,
+		      int const* gid,
                       double const* const* r,
                       double const* q,
                       double const* const* mu,
@@ -220,16 +224,18 @@ void ewald_direct_sum(double &energy,
 #pragma omp parallel for schedule(dynamic, 1) private(rij, dmy_energy, dmy_force, dmy_torque, dmy_field, dmy_field_grad) \
   reduction(+:shell_energy)
       for(int i = 0; i < Nparticles; i++){
-        const double qi = q[i];
-        const double* ri = r[i];
+	const int    iid  = gid[i];
+        const double qi   = q[i];
+        const double* ri  = r[i];
 	const double* mui = mu[i];
 	
 	for(int j = 0; j < Nparticles; j++){
-          const double qj = q[j];
-          const double* rj = r[j];
+	  const int    jid  = gid[j];
+          const double qj   = q[j];
+          const double* rj  = r[j];
 	  const double* muj = mu[j];
 
-	  if(!(i == j && ll == 0 && mm == 0 && nn == 0)){
+	  if(!(iid == jid && ll == 0 && mm == 0 && nn == 0)){
             
 	    for(int d = 0; d < DIM; d++){
 	      rij[d] = (ri[d] - rj[d]) + (double)icell[d]*lbox[d];
@@ -329,6 +335,7 @@ void ewald_direct_sum_naive(double &energy,
                             const int &nmax,
                             const int &Nparticles,
                             const parallelepiped &rcell,
+			    int const* gid,
                             double const* const* r,
                             double const* q,
                             double const* const* mu,
@@ -366,16 +373,18 @@ void ewald_direct_sum_naive(double &energy,
 	icell[2] = nn;
 
 	for(int i = 0; i < Nparticles; i++){
+	  const int iid     = gid[i];
           const double qi   = q[i];
           const double* ri  = r[i];
 	  const double* mui = mu[i];
 
 	  for(int j = 0; j < Nparticles; j++){
+	    const int jid     = gid[j];
             const double qj   = q[j];
             const double* rj  = r[j];
 	    const double* muj = mu[j];
             
-	    if(!(i == j && ll == 0 && mm == 0 && nn == 0)){
+	    if(!(iid == jid && ll == 0 && mm == 0 && nn == 0)){
 	      for(int d = 0; d < DIM; d++){
 		rij[d] = (ri[d] - rj[d]) + (double)icell[d]*lbox[d];
 	      }

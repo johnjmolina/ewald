@@ -5,6 +5,7 @@
 #include "ewald.h"
 
 int num;
+int *group_id;
 double *dval;
 
 double **r;
@@ -64,7 +65,8 @@ void init(const int &num){
   conv   = 0.51;
   epsilon= 1.0;
   ndirect= 24;
-    
+
+  group_id = (int*) alloc_1d_int(num);
   r = (double**) alloc_2d_double(num, DIM);
   dval = (double*) alloc_1d_double(num);
   q = (double*) alloc_1d_double(num);
@@ -73,6 +75,7 @@ void init(const int &num){
   polar = (double***) alloc_3d_double(num, DIM, DIM);
   {
     for(int i = 0; i < num; i++){
+      group_id[i] = -(i+1);
       q[i] = dval[i] = 0.0;
     }
     double* rr = r[0];
@@ -99,6 +102,7 @@ void init(const int &num){
   print_gold = true;
 }
 void free(){
+  free_1d_int(group_id);
   free_1d_double(dval);
   free_1d_double(q);
 
@@ -218,7 +222,7 @@ void compute_gold(const char* save_buffer){
   if(!load_gold(save_buffer)){
     energy_gold = 0.0;
     ewald_direct_sum(energy_gold, force_gold, torque_gold, efield_gold, efield_grad_gold, 
-		     ndirect, num, *cell, r, q, mu, stderr, save_buffer);
+		     ndirect, num, *cell, group_id, r, q, mu, stderr, save_buffer);
   }else{
     fprintf(stderr, "******* Reference results loaded from %s_gold.dat\n", save_buffer);
   }

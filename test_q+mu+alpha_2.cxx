@@ -95,7 +95,7 @@ int main(int argc, char *argv[]){
 
     ewald_direct_sum(energy_gold, force_gold, torque_gold,
                      efield_gold, efield_grad_gold,
-                     ndirect, num, *cell, r, q, mu, stderr, name);
+                     ndirect, num, *cell, group_id, r, q, mu, stderr, name);
     induced_dipole(mu, efield_gold);
     total_dipole(mu, mu0);
     induction_energy(energy_gold, efield_gold);
@@ -108,7 +108,7 @@ int main(int argc, char *argv[]){
   energy_gold = 0.0;
   ewald_direct_sum(energy_gold, force_gold, torque_gold,
                    efield_gold, efield_grad_gold,
-                   ndirect, num, *cell, r, q, mu, stderr, name);
+                   ndirect, num, *cell, group_id, r, q, mu, stderr, name);
   induction_energy(energy_gold, efield_gold);
   show_results(num, energy_gold, force_gold, torque_gold, efield_gold,
                efield_grad_gold, stderr);
