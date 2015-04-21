@@ -3,7 +3,7 @@
   Two point charges
  */
 int main(int argc, char *argv[]){
-  const char* name="2charge";
+  const char* name="q_2";
 
   num = 2;
   init(num);

@@ -3,7 +3,7 @@
   Test on quadrupoles
  */
 int main(int argc, char *argv[]){
-  const char* name="2quadrupole";
+  const char* name="theta_2_rand";
 
   num = 2;
   init(num);

@@ -3,7 +3,7 @@
   Two randomly oriented dipoles
  */
 int main(int argc, char *argv[]){
-  const char* name="2dipole_random";
+  const char* name="mu_2_rand";
 
   num = 2;
   init(num);

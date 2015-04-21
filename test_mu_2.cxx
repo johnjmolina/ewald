@@ -3,7 +3,7 @@
   Two parallel dipoles
  */
 int main(int argc, char *argv[]){
-  const char* name="2dipole";
+  const char* name="mu_2";
 
   num = 2;
   init(num);

@@ -44,7 +44,7 @@ void induction_energy(double &energy, double const* const* field_ind){
   energy += dmy/2.0;
 }
 int main(int argc, char *argv[]){
-  const char* name="2alpha";
+  const char* name="q+mu+alpha_2";
 
   num=4;
   init(num);

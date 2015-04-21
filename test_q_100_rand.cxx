@@ -3,7 +3,7 @@
   Hundred random point charges
  */
 int main(int argc, char *argv[]){
-  const char* name="100charge_random";
+  const char* name="q_100_rand";
 
   num = 100;
   init(num);

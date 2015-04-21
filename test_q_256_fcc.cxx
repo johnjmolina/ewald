@@ -32,7 +32,7 @@ void fccLattice(int ncells)
   Hundred random point charges
  */
 int main(int argc, char *argv[]){
-  const char* name="256fcc";
+  const char* name="q_256_fcc";
   const int ncells = 8;
   const int num_fcc = ncells*ncells*ncells;
   num = num_fcc;

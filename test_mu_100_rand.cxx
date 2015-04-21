@@ -3,7 +3,7 @@
   Hundred randomly oriented dipoles
  */
 int main(int argc, char *argv[]){
-  const char* name="100dipole_random";
+  const char* name="mu_100_rand";
 
   num = 100;
   init(num);

@@ -3,7 +3,7 @@
   One dipole
  */
 int main(int argc, char* argv[]){
-  const char* name="1dipole";
+  const char* name="mu_1";
 
   num = 1;
   init(num);
