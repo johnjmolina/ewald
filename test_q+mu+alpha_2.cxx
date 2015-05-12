@@ -4,45 +4,6 @@
   Two point charges + Two induced dipoles
  */
 #include "test_aux.h"
-void reset_dipole(double** mu_ind){
-  for(int i = 0; i < num; i++){
-    double* imu = mu_ind[i];
-    imu[0] = imu[1] = imu[2] = 0.0;
-  }
-}
-void induced_dipole(double** mu_ind, 
-                    double const* const* field_ind){
-  for(int i = 0; i < num; i++){
-    double* imu = mu_ind[i];
-    const double* iee = field_ind[i];
-    const double* iaa = polar[i][0];
-    imu[0] = iaa[0]*iee[0] + iaa[1]*iee[1] + iaa[2]*iee[2];
-    imu[1] = iaa[3]*iee[0] + iaa[4]*iee[1] + iaa[5]*iee[2];
-    imu[2] = iaa[6]*iee[0] + iaa[7]*iee[2] + iaa[8]*iee[2];
-  }
-}
-void total_dipole(double** mu_ind,
-                  double const* const* mu_perm){
-  for(int i = 0; i < num; i++){
-    double* imu = mu_ind[i];
-    const double* imu0= mu_perm[i];
-
-    imu[0] += imu0[0];
-    imu[1] += imu0[1];
-    imu[2] += imu0[2];
-  }
-}
-void induction_energy(double &energy, double const* const* field_ind){
-  double dmy = 0.0;
-  for(int i = 0; i < num; i++){
-    const double* iee = field_ind[i];
-    const double* iaa = polar[i][0];
-    dmy += iee[0]*(iaa[0]*iee[0] + iaa[1]*iee[1] + iaa[2]*iee[2])
-      + iee[1]*(iaa[3]*iee[0] + iaa[4]*iee[1] + iaa[5]*iee[2])
-      + iee[2]*(iaa[6]*iee[0] + iaa[7]*iee[1] + iaa[8]*iee[2]);
-  }
-  energy += dmy/2.0;
-}
 int main(int argc, char *argv[]){
   const char* name="q+mu+alpha_2";
 
@@ -96,9 +57,9 @@ int main(int argc, char *argv[]){
     ewald_direct_sum(energy_gold, force_gold, torque_gold,
                      efield_gold, efield_grad_gold,
                      ndirect, num, *cell, group_id, r, q, mu, stderr, name);
-    induced_dipole(mu, efield_gold);
+    induced_dipole(mu, efield_gold, polar);
     total_dipole(mu, mu0);
-    induction_energy(energy_gold, efield_gold);
+    induction_energy(energy_gold, efield_gold, polar);
     fprintf(stderr, "#ALPHA iter %d\n", i);
     show_results(num, energy_gold, force_gold, torque_gold, efield_gold,
                  efield_grad_gold, stderr);
@@ -109,7 +70,7 @@ int main(int argc, char *argv[]){
   ewald_direct_sum(energy_gold, force_gold, torque_gold,
                    efield_gold, efield_grad_gold,
                    ndirect, num, *cell, group_id, r, q, mu, stderr, name);
-  induction_energy(energy_gold, efield_gold);
+  induction_energy(energy_gold, efield_gold, polar);
   show_results(num, energy_gold, force_gold, torque_gold, efield_gold,
                efield_grad_gold, stderr);
   fprintf(stderr, "induction =  %.8f %.8f %.8f %.8f %.8f %.8f\n", 

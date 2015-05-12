@@ -59,6 +59,48 @@ void random_dipole(const double &val, double mui[DIM]){
   mui[1] = val*sin(theta)*sin(phi);
   mui[2] = val*cos(theta);
 }
+void reset_dipole(double** mu_ind){
+  for(int i = 0; i < num; i++){
+    double* imu = mu_ind[i];
+    imu[0] = imu[1] = imu[2] = 0.0;
+  }
+}
+void induced_dipole(double** mu_ind, 
+                    double const* const* field_ind,
+		    double const* const* const* apolar){
+  for(int i = 0; i < num; i++){
+    double* imu = mu_ind[i];
+    const double* iee = field_ind[i];
+    const double* iaa = apolar[i][0];
+    imu[0] = iaa[0]*iee[0] + iaa[1]*iee[1] + iaa[2]*iee[2];
+    imu[1] = iaa[3]*iee[0] + iaa[4]*iee[1] + iaa[5]*iee[2];
+    imu[2] = iaa[6]*iee[0] + iaa[7]*iee[2] + iaa[8]*iee[2];
+  }
+}
+void total_dipole(double** mu_ind,
+                  double const* const* mu_perm){
+  for(int i = 0; i < num; i++){
+    double* imu = mu_ind[i];
+    const double* imu0= mu_perm[i];
+
+    imu[0] += imu0[0];
+    imu[1] += imu0[1];
+    imu[2] += imu0[2];
+  }
+}
+void induction_energy(double &energy,
+		      double const* const* field_ind,
+		      double const* const* const* apolar){
+  double dmy = 0.0;
+  for(int i = 0; i < num; i++){
+    const double* iee = field_ind[i];
+    const double* iaa = apolar[i][0];
+    dmy += iee[0]*(iaa[0]*iee[0] + iaa[1]*iee[1] + iaa[2]*iee[2])
+      + iee[1]*(iaa[3]*iee[0] + iaa[4]*iee[1] + iaa[5]*iee[2])
+      + iee[2]*(iaa[6]*iee[0] + iaa[7]*iee[1] + iaa[8]*iee[2]);
+  }
+  energy += dmy/2.0;
+}
 void init(const int &num){
   alpha  = 8.0;
   delta  = 1.0e-16;
@@ -178,7 +220,7 @@ void show_results(const int &n, const double &energy,
           SQ(efield_grad[0][0][2] - efield_grad[0][2][0]) + 
           SQ(efield_grad[0][1][2] - efield_grad[0][2][1])
           );
-  if(n > 1){
+  if(n > 10){
   fprintf(fout, "%14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f %14.9f\n",
           energy, 
 	  force[1][0], force[1][1], force[1][2],
